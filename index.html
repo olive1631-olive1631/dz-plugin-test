@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>核对台 · 插件测试</title>
+<style>
+:root{--bg:#f6f7f5;--card:#fff;--ink:#1d2320;--muted:#6f7772;--line:#dde1dc;--ok:#2a7330;--okbg:#e2f0e1;--bad:#b9302a;--badbg:#fae6e3;--wait:#8a6d00;--waitbg:#f8f1cf;--acc:#1f5c86}
+@media (prefers-color-scheme:dark){:root{--bg:#151917;--card:#1d2220;--ink:#e6ebe8;--muted:#8f9893;--line:#333a36;--ok:#7cc580;--okbg:#1c311f;--bad:#ef7b71;--badbg:#3a1f1c;--wait:#e0c450;--waitbg:#332f19;--acc:#74a9d4}}
+*{box-sizing:border-box}
+body{margin:0;padding:14px;background:var(--bg);color:var(--ink);font:14px/1.55 "PingFang SC","Microsoft YaHei",system-ui,sans-serif}
+h1{font-size:16px;margin:0 0 4px}
+p.sub{margin:0 0 12px;color:var(--muted);font-size:12.5px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:12px}
+.row{display:flex;gap:8px;align-items:flex-start;padding:7px 0;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.tag{flex:none;font-size:12px;padding:1px 8px;border-radius:10px;font-weight:600;min-width:44px;text-align:center}
+.ok{background:var(--okbg);color:var(--ok)} .bad{background:var(--badbg);color:var(--bad)} .wait{background:var(--waitbg);color:var(--wait)}
+.row b{display:block;font-weight:600}
+.row span.d{color:var(--muted);font-size:12.5px;word-break:break-all}
+button{font:inherit;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:6px;padding:6px 12px;cursor:pointer}
+button.pri{background:var(--acc);border-color:var(--acc);color:#fff}
+button:disabled{opacity:.5;cursor:default}
+.btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+#live{font-size:12.5px;max-height:200px;overflow:auto}
+#live div{padding:4px 0;border-bottom:1px dashed var(--line)}
+</style>
+</head>
+<body>
+<h1>核对台 · 飞书插件测试</h1>
+<p class="sub">只用来确认飞书能不能跑核对台。会在当前多维表格里新建一张叫“插件测试”的表，测完可以删掉。</p>
+
+<div class="card" id="checks"></div>
+
+<div class="card">
+  <b>多人实时同步测试</b>
+  <p class="sub" style="margin:4px 0 8px">请两个人同时打开这个插件。一个人点“写入一条”，另一个人的页面下面应该在几秒内自动出现这一条，不用刷新。</p>
+  <div class="btns"><button class="pri" id="bWrite" disabled>写入一条</button><button id="bBig" disabled>测试大段数据</button><button id="bCopy">复制测试结果</button></div>
+  <div id="live" style="margin-top:8px"></div>
+</div>
+
+<script>
+// ---- 结果列表 ----
+var R = {};
+var ORDER = ['env', 'sdk', 'base', 'user', 'table', 'write', 'read', 'big', 'xlsx', 'width'];
+var NAME = { env: '在飞书多维表格里打开', sdk: '多维表格接口组件', base: '读取当前多维表格', user: '识别当前用户', table: '新建 / 找到“插件测试”表', write: '写入数据', read: '读取数据', big: '一个格子存大段数据', xlsx: 'Excel 读取组件（国内地址）', width: '侧边栏宽度' };
+function set(k, st, d) { R[k] = { st: st, d: d || '' }; draw(); }
+function draw() {
+  document.getElementById('checks').innerHTML = ORDER.map(function (k) {
+    var r = R[k] || { st: 'wait', d: '等待中' };
+    var t = { ok: '通过', bad: '失败', wait: '…' }[r.st];
+    return '<div class="row"><span class="tag ' + r.st + '">' + t + '</span><div><b>' + NAME[k] + '</b><span class="d">' + esc(r.d) + '</span></div></div>';
+  }).join('');
+}
+function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+function msg(e) { return (e && (e.message || e.code)) ? (e.code ? e.code + ' ' : '') + (e.message || '') : String(e); }
+draw();
+set('width', 'ok', '当前宽度 ' + window.innerWidth + ' 像素');
+window.addEventListener('resize', function () { set('width', 'ok', '当前宽度 ' + window.innerWidth + ' 像素（可以试着把侧边栏拖宽）'); });
+
+// ---- Excel 组件：测国内地址能不能下载 ----
+(function () {
+  var src = ['https://registry.npmmirror.com/xlsx/0.18.5/files/dist/xlsx.full.min.js', 'https://cdn.bootcdn.net/ajax/libs/xlsx/0.18.5/xlsx.full.min.js', 'https://cdn.staticfile.net/xlsx/0.18.5/xlsx.full.min.js', 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js'];
+  var i = 0, t0 = Date.now();
+  (function next() {
+    if (i >= src.length) return set('xlsx', 'bad', '全部地址都下载失败');
+    var s = document.createElement('script'); var done = false;
+    var to = setTimeout(function () { if (!done) { done = true; i++; next(); } }, 10000);
+    s.src = src[i];
+    s.onload = function () { if (done) return; done = true; clearTimeout(to); if (window.XLSX) set('xlsx', 'ok', '用 ' + new URL(src[i]).host + '，' + ((Date.now() - t0) / 1000).toFixed(1) + ' 秒'); else { i++; next(); } };
+    s.onerror = function () { if (done) return; done = true; clearTimeout(to); i++; next(); };
+    document.head.appendChild(s);
+  })();
+})();
+</script>
+<script type="module">
+const SRC = [
+  'https://registry.npmmirror.com/@lark-base-open/js-sdk/1.0.2/files/dist/index.mjs',
+  'https://cdn.jsdelivr.net/npm/@lark-base-open/js-sdk@1.0.2/dist/index.mjs',
+  'https://unpkg.com/@lark-base-open/js-sdk@1.0.2/dist/index.mjs',
+  'https://esm.sh/@lark-base-open/js-sdk@1.0.2'
+];
+const withTimeout = (p, ms) => Promise.race([p, new Promise((_, r) => setTimeout(() => r(new Error('超时')), ms))]);
+let SDK = null, used = '', t0 = Date.now(), errs = [];
+for (const u of SRC) {
+  try { SDK = await withTimeout(import(u), 20000); used = new URL(u).host; break; }
+  catch (e) { errs.push(new URL(u).host + '：' + msg(e)); }
+}
+if (!SDK) {
+  set('sdk', 'bad', '下载失败：' + errs.join('；'));
+  ['env', 'base', 'user', 'table', 'write', 'read', 'big'].forEach((k) => set(k, 'bad', '组件没加载，无法测试'));
+} else {
+  set('sdk', 'ok', '用 ' + used + '，' + ((Date.now() - t0) / 1000).toFixed(1) + ' 秒' + (errs.length ? '（前面失败：' + errs.join('；') + '）' : ''));
+  run(SDK).catch((e) => console.error(e));
+}
+
+async function run({ bitable, FieldType }) {
+  const inFrame = window.self !== window.top;
+  // 1. 环境 + 当前表格
+  let base = bitable.base;
+  try {
+    const metas = await withTimeout(base.getTableMetaList(), 8000);
+    set('env', 'ok', '已在多维表格里运行');
+    set('base', 'ok', '这个多维表格有 ' + metas.length + ' 张表：' + metas.map((m) => m.name).join('、'));
+  } catch (e) {
+    set('env', 'bad', inFrame ? '在框里打开了，但连不上多维表格：' + msg(e) : '现在是直接用浏览器打开的。要在飞书多维表格的“插件 → 自定义插件”里打开才能测试');
+    ['base', 'user', 'table', 'write', 'read', 'big'].forEach((k) => set(k, 'bad', '没有在多维表格里运行'));
+    return;
+  }
+  // 2. 用户
+  let uid = '';
+  try { uid = await bitable.bridge.getUserId(); set('user', 'ok', '用户 ID ' + uid.slice(0, 6) + '…（不同的人这里应该不一样）'); }
+  catch (e) { set('user', 'bad', msg(e)); }
+  // 3. 测试表
+  let table, fText, fWho, fTime;
+  try {
+    const metas = await base.getTableMetaList();
+    let m = metas.find((x) => x.name === '插件测试');
+    if (!m) {
+      const r = await base.addTable({ name: '插件测试', fields: [{ name: '内容', type: FieldType.Text }] });
+      table = await base.getTableById(r.tableId);
+      await table.addField({ type: FieldType.Text, name: '写入人' });
+      await table.addField({ type: FieldType.Text, name: '时间' });
+      set('table', 'ok', '已新建');
+    } else { table = await base.getTableById(m.id); set('table', 'ok', '已找到'); }
+    const fs = await table.getFieldMetaList();
+    const byName = (n) => (fs.find((f) => f.name === n) || {}).id;
+    fText = byName('内容') || fs[0].id; fWho = byName('写入人'); fTime = byName('时间');
+  } catch (e) { set('table', 'bad', msg(e) + '（可能是你对这个多维表格只有查看权限）'); ['write', 'read', 'big'].forEach((k) => set(k, 'bad', '没有测试表')); return; }
+
+  const seg = (s) => [{ type: 'text', text: s }];
+  const txt = (v) => Array.isArray(v) ? v.map((x) => x.text || '').join('') : (v == null ? '' : String(v));
+  const now = () => new Date().toLocaleString('zh-CN', { hour12: false });
+
+  // 4. 读
+  const live = document.getElementById('live');
+  async function readAll(silent) {
+    try {
+      let all = [], tok;
+      do { const r = await table.getRecords({ pageSize: 200, pageToken: tok }); all = all.concat(r.records); tok = r.hasMore ? r.pageToken : null; } while (tok);
+      live.innerHTML = all.slice(-15).reverse().map((r) => { const c = txt(r.fields[fText]); return '<div>' + esc(txt(r.fields[fTime])) + ' · ' + esc(txt(r.fields[fWho]).slice(0, 6)) + '… · ' + esc(c.length > 60 ? '大段数据 ' + c.length + ' 字' : c) + '</div>'; }).join('') || '<div>还没有记录</div>';
+      if (!silent) set('read', 'ok', '读到 ' + all.length + ' 条');
+      return all;
+    } catch (e) { set('read', 'bad', msg(e)); return []; }
+  }
+  await readAll();
+  // 5. 实时
+  let liveN = 0;
+  const onChange = () => { liveN++; readAll(true); set('read', 'ok', '读取正常；自动收到别人的改动 ' + liveN + ' 次'); };
+  try { table.onRecordAdd(onChange); table.onRecordModify(onChange); } catch (e) { set('read', 'bad', '不能监听改动：' + msg(e)); }
+
+  // 6. 写
+  const bW = document.getElementById('bWrite'), bB = document.getElementById('bBig');
+  bW.disabled = false; bB.disabled = false;
+  const write = async (content) => {
+    const f = {}; f[fText] = seg(content); if (fWho) f[fWho] = seg(uid || '?'); if (fTime) f[fTime] = seg(now());
+    return table.addRecord({ fields: f });
+  };
+  set('write', 'wait', '点上面的“写入一条”测试');
+  set('big', 'wait', '点“测试大段数据”测试');
+  bW.onclick = async () => { bW.disabled = true; try { await write('测试 ' + now()); set('write', 'ok', '写入成功'); await readAll(); } catch (e) { set('write', 'bad', msg(e)); } bW.disabled = false; };
+  bB.onclick = async () => {
+    bB.disabled = true;
+    const sizes = [20000, 50000, 100000, 200000]; let okMax = 0, fail = '';
+    for (const n of sizes) {
+      const s = ('{"wo":"WO26101213155","tr":"878504715835","sku":"IPA-99-04"},').repeat(Math.ceil(n / 60)).slice(0, n);
+      try {
+        const id = await write(s);
+        const v = txt(await table.getCellValue(fText, id));
+        if (v.length === n) okMax = n; else { fail = n + ' 字写进去只读回 ' + v.length + ' 字'; await table.deleteRecord(id); break; }
+        await table.deleteRecord(id);
+      } catch (e) { fail = n + ' 字失败：' + msg(e); break; }
+    }
+    set('big', okMax ? 'ok' : 'bad', (okMax ? '一个格子能完整存 ' + okMax.toLocaleString() + ' 字' : '') + (fail ? (okMax ? '；' : '') + fail : ''));
+    bB.disabled = false; readAll(true);
+  };
+}
+</script>
+<script>
+document.getElementById('bCopy').onclick = function () {
+  var t = ORDER.map(function (k) { var r = R[k] || { st: 'wait', d: '' }; return (r.st === 'ok' ? '✔ ' : r.st === 'bad' ? '✘ ' : '… ') + NAME[k] + '：' + r.d; }).join('\n') + '\n浏览器：' + navigator.userAgent;
+  var ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select();
+  var ok = false; try { ok = document.execCommand('copy'); } catch (e) {}
+  if (!ok && navigator.clipboard) navigator.clipboard.writeText(t).then(function () {}, function () {});
+  ta.remove(); this.textContent = '已复制，粘贴发给 Claude';
+};
+</script>
+</body>
+</html>
