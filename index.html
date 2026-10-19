@@ -1,189 +1,1952 @@
-<!doctype html>
-<html lang="zh-CN">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>核对台 · 插件测试</title>
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>打单与上线率核对台</title>
 <style>
-:root{--bg:#f6f7f5;--card:#fff;--ink:#1d2320;--muted:#6f7772;--line:#dde1dc;--ok:#2a7330;--okbg:#e2f0e1;--bad:#b9302a;--badbg:#fae6e3;--wait:#8a6d00;--waitbg:#f8f1cf;--acc:#1f5c86}
-@media (prefers-color-scheme:dark){:root{--bg:#151917;--card:#1d2220;--ink:#e6ebe8;--muted:#8f9893;--line:#333a36;--ok:#7cc580;--okbg:#1c311f;--bad:#ef7b71;--badbg:#3a1f1c;--wait:#e0c450;--waitbg:#332f19;--acc:#74a9d4}}
+/* Layout: sticky label-strip header (date = batch), tab rail, single working column of panels */
+:root{
+  --bg:#f2f3ef; --surface:#ffffff; --surface-2:#e9ebe5; --ink:#19201c; --ink-2:#4a524d; --muted:#7a827d; --line:#d5d9d1; --line-2:#aeb4ab; --zebra:#f7f8f5;
+  --accent:#1f5c86; --accent-soft:#e2ecf4; --accent-ink:#ffffff;
+  --manual:#e5f1e0; --manual-line:#93c08d;
+  --red:#b9302a; --red-bg:#fae6e3; --orange:#b4600f; --orange-bg:#fbeedd; --yellow:#8a6d00; --yellow-bg:#f8f1cf; --green:#2a7330; --green-bg:#e2f0e1;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4;
+  --f-body:"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  --f-num:"IBM Plex Sans","Segoe UI","Helvetica Neue",Arial,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+  --r:6px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#131715; --surface:#1b201d; --surface-2:#242a26; --ink:#e7ebe8; --ink-2:#b3bbb6; --muted:#868f8a; --line:#323935; --line-2:#4b544f; --zebra:#202522;
+  --accent:#74a9d4; --accent-soft:#1d2b36; --accent-ink:#0f1a22;
+  --manual:#1d3020; --manual-line:#4f8150;
+  --red:#ef7b71; --red-bg:#3a1f1c; --orange:#efa258; --orange-bg:#382916; --yellow:#e0c450; --yellow-bg:#332f19; --green:#7cc580; --green-bg:#1c311f;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#131715; --surface:#1b201d; --surface-2:#242a26; --ink:#e7ebe8; --ink-2:#b3bbb6; --muted:#868f8a; --line:#323935; --line-2:#4b544f; --zebra:#202522;
+  --accent:#74a9d4; --accent-soft:#1d2b36; --accent-ink:#0f1a22;
+  --manual:#1d3020; --manual-line:#4f8150;
+  --red:#ef7b71; --red-bg:#3a1f1c; --orange:#efa258; --orange-bg:#382916; --yellow:#e0c450; --yellow-bg:#332f19; --green:#7cc580; --green-bg:#1c311f;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; color-scheme:dark}
 *{box-sizing:border-box}
-body{margin:0;padding:14px;background:var(--bg);color:var(--ink);font:14px/1.55 "PingFang SC","Microsoft YaHei",system-ui,sans-serif}
-h1{font-size:16px;margin:0 0 4px}
-p.sub{margin:0 0 12px;color:var(--muted);font-size:12.5px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:12px}
-.row{display:flex;gap:8px;align-items:flex-start;padding:7px 0;border-bottom:1px solid var(--line)}
-.row:last-child{border-bottom:0}
-.tag{flex:none;font-size:12px;padding:1px 8px;border-radius:10px;font-weight:600;min-width:44px;text-align:center}
-.ok{background:var(--okbg);color:var(--ok)} .bad{background:var(--badbg);color:var(--bad)} .wait{background:var(--waitbg);color:var(--wait)}
-.row b{display:block;font-weight:600}
-.row span.d{color:var(--muted);font-size:12.5px;word-break:break-all}
-button{font:inherit;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:6px;padding:6px 12px;cursor:pointer}
-button.pri{background:var(--acc);border-color:var(--acc);color:#fff}
-button:disabled{opacity:.5;cursor:default}
-.btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
-#live{font-size:12.5px;max-height:200px;overflow:auto}
-#live div{padding:4px 0;border-bottom:1px dashed var(--line)}
+html,body{background:var(--bg);color:var(--ink)}
+body{font-family:var(--f-body);font-size:14px;line-height:1.55;padding-inline:16px;padding-block:0 48px}
+.wrap{max-width:1240px;margin:0 auto}
+h1,h2,h3{text-wrap:balance;margin:0}
+h2{font-size:17px;font-weight:700;letter-spacing:.01em}
+h3{font-size:14px;font-weight:700}
+.mono,.trk{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.num,td.n,.kpi .v,.man{font-family:var(--f-num);font-variant-numeric:tabular-nums lining-nums;letter-spacing:.01em}
+td.n{font-size:13.5px;color:var(--ink)}
+.blank{color:var(--muted);opacity:.6}
+.muted{color:var(--muted)} .small{font-size:12px}
+button,select,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* header */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-top:12px;border-bottom:1px solid var(--line)}
+.bar{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;justify-content:space-between}
+.brand{display:flex;align-items:baseline;gap:10px;min-width:0}
+.brand h1{font-size:19px;font-weight:700;letter-spacing:.02em}
+.brand .tag{font-family:var(--f-mono);font-size:11px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
+.stub{display:flex;align-items:stretch;border:1.5px dashed var(--ink-2);border-radius:var(--r);background:var(--surface);overflow:hidden}
+.stub .lbl{font-size:11px;letter-spacing:.12em;padding:6px 8px;background:var(--ink);color:var(--bg);display:flex;align-items:center}
+.stub button{border:0;background:transparent;padding:0 10px;font-size:16px;color:var(--ink-2)}
+.stub button:hover{background:var(--surface-2)}
+.stub input{border:0;background:transparent;font-family:var(--f-mono);font-size:15px;padding:5px 4px;width:150px}
+.status{font-size:12px;color:var(--muted);display:flex;gap:8px;align-items:center}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted);display:inline-block}
+.dot.ok{background:var(--green)} .dot.warn{background:var(--orange)}
+.tabs{display:flex;gap:2px;overflow-x:auto;margin-top:10px;scrollbar-width:none}
+.tabs button{border:0;background:transparent;padding:9px 12px 10px;border-bottom:2.5px solid transparent;color:var(--ink-2);white-space:nowrap;font-weight:500}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.tabs .cnt{font-family:var(--f-mono);font-size:11px;margin-left:5px;padding:0 5px;border-radius:9px;background:var(--red-bg);color:var(--red)}
+
+main{padding-top:18px;display:grid;gap:18px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:grid;gap:12px;min-width:0}
+.panel>header{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:baseline;justify-content:space-between}
+.panel>header p{margin:0;color:var(--muted);font-size:12.5px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:18px}
+.banner{padding:10px 14px;border-radius:var(--r);font-size:13px;border:1px solid}
+.banner.warn{background:var(--orange-bg);border-color:var(--orange);color:var(--ink)}
+.banner.info{background:var(--accent-soft);border-color:var(--accent)}
+
+/* KPI */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.kpi{background:var(--surface);padding:12px 14px;display:grid;gap:2px;min-width:0}
+.kpi .k{font-size:12px;color:var(--muted)}
+.kpi .v{font-size:23px;font-weight:600}
+.kpi .s{font-size:12px;color:var(--ink-2)}
+
+/* chips & severity */
+.chip{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;padding:1px 7px;border-radius:10px;white-space:nowrap;font-weight:500;border:1px solid transparent}
+.c-red{background:var(--red-bg);color:var(--red);border-color:color-mix(in srgb,var(--red) 35%,transparent)}
+.c-orange{background:var(--orange-bg);color:var(--orange);border-color:color-mix(in srgb,var(--orange) 35%,transparent)}
+.c-yellow{background:var(--yellow-bg);color:var(--yellow);border-color:color-mix(in srgb,var(--yellow) 35%,transparent)}
+.c-green{background:var(--green-bg);color:var(--green);border-color:color-mix(in srgb,var(--green) 35%,transparent)}
+.c-grey{background:var(--surface-2);color:var(--ink-2)}
+.c-blue{background:var(--accent-soft);color:var(--accent)}
+.alerts{display:grid;gap:8px}
+.alert{display:grid;grid-template-columns:auto 1fr auto;gap:4px 12px;align-items:start;padding:10px 12px;border:1px solid var(--line);border-left-width:4px;border-radius:var(--r);background:var(--surface)}
+.alert.red{border-left-color:var(--red)} .alert.orange{border-left-color:var(--orange)} .alert.yellow{border-left-color:var(--yellow)}
+.alert .t{font-weight:500} .alert .d{grid-column:2/4;color:var(--ink-2);font-size:12.5px;word-break:break-word}
+.alert .go{font-size:12px;border:0;background:none;color:var(--accent);padding:0}
+.empty{padding:18px;border:1px dashed var(--line);border-radius:var(--r);color:var(--muted);text-align:center}
+
+/* tables */
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);max-height:560px;overflow-y:auto}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:6px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap;vertical-align:middle}
+th{position:sticky;top:0;background:var(--surface-2);font-weight:500;font-size:12px;color:var(--ink-2);z-index:1}
+td.n,th.n{text-align:right;padding-left:20px}
+tbody tr:nth-child(even) td{background:var(--zebra)}
+/* 台账：分组表头 + 组间竖线 + 原因单独一行 */
+.ledger th,.ledger td{padding:8px 14px}
+.ledger td.n{min-width:104px}
+.ledger th.g{text-align:center;border-bottom:1px solid var(--line-2);font-weight:600;color:var(--ink)}
+.ledger thead tr:nth-child(2) th{top:34px}
+.ledger .sep{border-left:1px solid var(--line-2)}
+.ledger tbody tr.r td{border-bottom:0}
+.ledger tbody tr.why td{background:transparent;white-space:normal;font-size:12px;color:var(--ink-2);padding-top:0;padding-bottom:10px;border-bottom:1px solid var(--line)}
+.ledger tbody tr.why td span.lead{color:var(--muted);margin-right:6px}
+.ledger tbody tr.r.bad td:first-child{box-shadow:inset 3px 0 0 var(--red)}
+.ledger tbody tr.r.ok td:first-child{box-shadow:inset 3px 0 0 var(--green)}
+.ledger tbody tr:nth-child(even) td{background:transparent}
+.ledger tbody tr.r:hover td,.ledger tbody tr.r:hover+tr.why td{background:color-mix(in srgb,var(--accent-soft) 45%,transparent)}
+.ledger td.big{font-weight:600}
+.ledger td.in{padding:8px 5px}
+.ledger .man{width:86px}
+.ledger th.in{padding-inline:5px}
+tr:last-child td{border-bottom:0}
+tbody tr:hover td{background:color-mix(in srgb,var(--accent-soft) 45%,transparent)}
+td.wrap{white-space:normal;min-width:200px}
+tr.tot td{font-weight:700;background:var(--surface-2)}
+.haz{font-size:10.5px;color:var(--red);border:1px solid var(--red);border-radius:3px;padding:0 3px;margin-left:4px}
+.pos{color:var(--green)} .neg{color:var(--red)}
+
+/* inputs: green = 手动填写 */
+.in{border:1px solid var(--line);background:var(--surface);border-radius:4px;padding:4px 7px;min-width:0}
+.man{background:var(--manual);border:1px solid var(--manual-line);border-radius:4px;padding:5px 8px;width:108px;text-align:right;font-size:13.5px}
+.man.wide{width:auto;text-align:left;font-family:var(--f-body);min-width:120px}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:var(--r);padding:6px 12px;font-weight:500}
+.btn:hover{background:var(--surface-2)}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.pri:hover{filter:brightness(1.08)}
+.btn.sm{padding:3px 9px;font-size:12px}
+.btn:disabled{opacity:.5;cursor:default}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.seg button{border:0;background:var(--surface);padding:5px 10px;font-size:12.5px}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+label.f{display:grid;gap:3px;font-size:12px;color:var(--ink-2)}
+
+/* upload */
+.drop{border:2px dashed var(--line);border-radius:var(--r);padding:28px 16px;text-align:center;background:var(--surface);display:grid;gap:6px;justify-items:center}
+.drop.over{border-color:var(--accent);background:var(--accent-soft)}
+.drop strong{font-size:15px}
+.steps{margin:0;padding-left:20px;display:grid;gap:4px;color:var(--ink-2);font-size:13px}
+.prog{height:6px;background:var(--surface-2);border-radius:3px;overflow:hidden}
+.prog>i{display:block;height:100%;background:var(--accent);width:0}
+
+/* chart */
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--ink-2)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.bars{display:grid;gap:6px}
+.brow{display:grid;grid-template-columns:96px 1fr 92px;gap:10px;align-items:center;font-size:12px}
+.btrack{display:flex;gap:2px;height:16px;min-width:0}
+.btrack span{height:100%;min-width:2px;position:relative}
+.btrack span:first-child{border-radius:0}
+.btrack span:last-child{border-radius:0 4px 4px 0}
+.tip{position:fixed;pointer-events:none;background:var(--ink);color:var(--bg);font-size:12px;padding:6px 9px;border-radius:5px;z-index:20;max-width:260px}
+details>summary{cursor:pointer;color:var(--accent);font-size:12.5px}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:var(--r);font-size:13px;z-index:30}
+@media (max-width:640px){ body{padding-inline:10px} .brand .tag{display:none} .brand h1{font-size:16px} .bar{gap:8px} .panel{padding:12px} .kpis{grid-template-columns:repeat(2,minmax(0,1fr))} .kpi .v{font-size:18px} .grid2{grid-template-columns:minmax(0,1fr)} th,td{padding:5px 7px} .tabs button{padding:8px 9px 9px} .status{font-size:11.5px} .alert{grid-template-columns:auto minmax(0,1fr) auto}  .brow{grid-template-columns:72px 1fr 70px} .kpi .v{font-size:19px} .stub input{width:128px} }
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
-</head>
-<body>
-<h1>核对台 · 飞书插件测试</h1>
-<p class="sub">只用来确认飞书能不能跑核对台。会在当前多维表格里新建一张叫“插件测试”的表，测完可以删掉。</p>
 
-<div class="card" id="checks"></div>
-
-<div class="card">
-  <b>多人实时同步测试</b>
-  <p class="sub" style="margin:4px 0 8px">请两个人同时打开这个插件。一个人点“写入一条”，另一个人的页面下面应该在几秒内自动出现这一条，不用刷新。</p>
-  <div class="btns"><button class="pri" id="bWrite" disabled>写入一条</button><button id="bBig" disabled>测试大段数据</button><button id="bCopy">复制测试结果</button></div>
-  <div id="live" style="margin-top:8px"></div>
+<div class="wrap">
+  <div class="top">
+    <div class="bar">
+      <div class="brand"><h1>打单与上线率核对台</h1><span class="tag">Label · Tracking · Balance</span></div>
+      <div class="row">
+        <div class="stub" title="业务日期 = 打单平台的交单日期（报告里的创建时间）">
+          <span class="lbl">打单日</span>
+          <button id="dPrev" aria-label="前一个打单日">‹</button>
+          <input id="dSel" type="date" aria-label="业务日期">
+          <button id="dNext" aria-label="后一个打单日">›</button>
+        </div>
+        <div class="status" id="stStatus"><span class="dot"></span><span>正在连接多维表格…</span></div>
+      </div>
+    </div>
+    <nav class="tabs" id="tabs" role="tablist"></nav>
+  </div>
+  <main id="main"></main>
 </div>
+<div id="tip" class="tip" hidden></div>
+<div id="toast" class="toast" hidden></div>
 
 <script>
-// ---- 结果列表 ----
-var R = {};
-var ORDER = ['env', 'sdk', 'base', 'user', 'table', 'write', 'read', 'big', 'xlsx', 'width'];
-var NAME = { env: '在飞书多维表格里打开', sdk: '多维表格接口组件', base: '读取当前多维表格', user: '识别当前用户', table: '新建 / 找到“插件测试”表', write: '写入数据', read: '读取数据', big: '一个格子存大段数据', xlsx: 'Excel 读取组件（国内地址）', width: '侧边栏宽度' };
-function set(k, st, d) { R[k] = { st: st, d: d || '' }; draw(); }
-function draw() {
-  document.getElementById('checks').innerHTML = ORDER.map(function (k) {
-    var r = R[k] || { st: 'wait', d: '等待中' };
-    var t = { ok: '通过', bad: '失败', wait: '…' }[r.st];
-    return '<div class="row"><span class="tag ' + r.st + '">' + t + '</span><div><b>' + NAME[k] + '</b><span class="d">' + esc(r.d) + '</span></div></div>';
-  }).join('');
-}
-function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
-function msg(e) { return (e && (e.message || e.code)) ? (e.code ? e.code + ' ' : '') + (e.message || '') : String(e); }
-draw();
-set('width', 'ok', '当前宽度 ' + window.innerWidth + ' 像素');
-window.addEventListener('resize', function () { set('width', 'ok', '当前宽度 ' + window.innerWidth + ' 像素（可以试着把侧边栏拖宽）'); });
-
-// ---- Excel 组件：测国内地址能不能下载 ----
+/* ===== 飞书插件版：数据存进当前多维表格（替代原来的共享数据库） ===== */
 (function () {
-  var src = ['https://registry.npmmirror.com/xlsx/0.18.5/files/dist/xlsx.full.min.js', 'https://cdn.bootcdn.net/ajax/libs/xlsx/0.18.5/xlsx.full.min.js', 'https://cdn.staticfile.net/xlsx/0.18.5/xlsx.full.min.js', 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js'];
-  var i = 0, t0 = Date.now();
-  (function next() {
-    if (i >= src.length) return set('xlsx', 'bad', '全部地址都下载失败');
-    var s = document.createElement('script'); var done = false;
-    var to = setTimeout(function () { if (!done) { done = true; i++; next(); } }, 10000);
-    s.src = src[i];
-    s.onload = function () { if (done) return; done = true; clearTimeout(to); if (window.XLSX) set('xlsx', 'ok', '用 ' + new URL(src[i]).host + '，' + ((Date.now() - t0) / 1000).toFixed(1) + ' 秒'); else { i++; next(); } };
-    s.onerror = function () { if (done) return; done = true; clearTimeout(to); i++; next(); };
-    document.head.appendChild(s);
-  })();
+  'use strict';
+  // ---- Excel 读取库：国内地址优先 ----
+  var XSRC = [
+    'xlsx.full.min.js',
+    'https://registry.npmmirror.com/xlsx/0.18.5/files/dist/xlsx.full.min.js',
+    'https://cdn.bootcdn.net/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
+    'https://cdn.staticfile.net/xlsx/0.18.5/xlsx.full.min.js',
+    'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js'
+  ];
+  var xp = null;
+  window.loadXLSX = function () {
+    if (window.XLSX) return Promise.resolve(window.XLSX);
+    if (xp) return xp;
+    xp = new Promise(function (ok, bad) {
+      var i = 0;
+      (function next() {
+        if (window.XLSX) return ok(window.XLSX);
+        if (i >= XSRC.length) { xp = null; return bad(new Error('Excel 读取组件加载失败，请确认能上网后重新打开插件')); }
+        var s = document.createElement('script'); var done = false;
+        var t = setTimeout(function () { if (!done) { done = true; s.remove(); i++; next(); } }, 10000);
+        s.src = XSRC[i];
+        s.onload = function () { if (done) return; done = true; clearTimeout(t); if (window.XLSX) ok(window.XLSX); else { i++; next(); } };
+        s.onerror = function () { if (done) return; done = true; clearTimeout(t); s.remove(); i++; next(); };
+        document.head.appendChild(s);
+      })();
+    });
+    return xp;
+  };
+  window.loadXLSX().catch(function () {});
+
+  // ---- 飞书多维表格接口组件 ----
+  var SDKSRC = [
+    'https://cdn.jsdelivr.net/npm/@lark-base-open/js-sdk@1.0.2/dist/index.mjs',
+    'https://unpkg.com/@lark-base-open/js-sdk@1.0.2/dist/index.mjs',
+    'https://esm.sh/@lark-base-open/js-sdk@1.0.2',
+    'https://registry.npmmirror.com/@lark-base-open/js-sdk/1.0.2/files/dist/index.mjs'
+  ];
+  function withTimeout(p, ms) { return Promise.race([p, new Promise(function (_, r) { setTimeout(function () { r(new Error('超时')); }, ms); })]); }
+  function loadSDK() {
+    if (window.__LARK_SDK__) return Promise.resolve(window.__LARK_SDK__); // 测试用
+    var i = 0;
+    return new Promise(function (ok, bad) {
+      (function next() {
+        if (i >= SDKSRC.length) return bad(new Error('飞书接口组件加载失败'));
+        withTimeout(import(SDKSRC[i]), 20000).then(ok, function () { i++; next(); });
+      })();
+    });
+  }
+
+  var CHUNK = 40000; // 一个格子实测最多 5 万字，留余量
+  var COLS = {
+    lab: '存档-打单', wl: '存档-Wavelink', trk: '存档-718', who: '存档-仓库发货',
+    note: '存档-跟进备注', spec: '存档-特殊情况', upl: '存档-上传记录', meta: '存档-设置'
+  };
+  var LEDT = '余额台账';
+  var PN = { HYE: 'HYE', TS: 'Timestar', WT: '万通', RK: '如铠', HC: '海承' };
+  var PR = {}; Object.keys(PN).forEach(function (k) { PR[PN[k]] = k; PR[k] = k; });
+  // 余额台账字段：[字段名, 数据里的键, 类型]
+  var LEDF = [['平台', 'p', 'T'], ['日期', 'd', 'T'], ['时间', 'time', 'T'], ['新增额度/充值', 'credit', 'N'], ['水单金额', 'slip', 'N'],
+    ['退款', 'refund', 'N'], ['反弹', 'rebound', 'N'], ['线下打单', 'offline', 'N'], ['手填预扣费', 'prepay', 'N'], ['交单后余额', 'close', 'N'],
+    ['备注', 'note', 'T'], ['来源', 'src', 'T'], ['更新时间', 'u', 'T']];
+
+  var SDK = null, base = null, FT = null;
+  var T = {};        // 表名 -> {table, f:{字段名:id}}
+  var IDX = {};      // 'col/id' -> [recordId,...]（按分片顺序）
+  var MEM = new Map();
+  var lastOwnWrite = 0, changeCb = null;
+  var seg = function (s) { return s == null || s === '' ? null : [{ type: 'text', text: String(s) }]; };
+  var txt = function (v) { return Array.isArray(v) ? v.map(function (x) { return x && x.text != null ? x.text : ''; }).join('') : (v == null ? '' : String(v)); };
+  var clone = function (x) { return JSON.parse(JSON.stringify(x)); };
+
+  function ensureTable(name, fields) {
+    // fields: [[名称, 'T'|'N'], ...]，第一个是主字段
+    return base.getTableMetaList().then(function (metas) {
+      var m = metas.find(function (x) { return x.name === name; });
+      var p = m ? base.getTableById(m.id) : base.addTable({ name: name, fields: [{ name: fields[0][0], type: FT.Text }] }).then(function (r) { return base.getTableById(r.tableId); });
+      return p.then(function (table) {
+        return table.getFieldMetaList().then(function (fm) {
+          var have = {}; fm.forEach(function (f) { have[f.name] = f.id; });
+          if (!m && fm.length && !have[fields[0][0]]) { have[fields[0][0]] = fm[0].id; }
+          var miss = fields.filter(function (f) { return !have[f[0]]; });
+          return miss.reduce(function (pr, f) {
+            return pr.then(function () { return table.addField({ type: f[1] === 'N' ? FT.Number : FT.Text, name: f[0] }).then(function (id) { have[f[0]] = id; }); });
+          }, Promise.resolve()).then(function () { T[name] = { table: table, f: have }; });
+        });
+      });
+    });
+  }
+  function allRecords(table) {
+    var out = [];
+    function page(tok) {
+      return table.getRecords({ pageSize: 100, pageToken: tok }).then(function (r) {
+        out = out.concat(r.records || []);
+        return r.hasMore ? page(r.pageToken) : out;
+      });
+    }
+    return page(undefined);
+  }
+  function loadCol(col) {
+    var t = T[COLS[col]]; var f = t.f;
+    return allRecords(t.table).then(function (recs) {
+      var parts = {};
+      recs.forEach(function (r) {
+        var key = txt(r.fields[f['键']]); if (!key) return;
+        var n = +txt(r.fields[f['分片']]) || 0;
+        (parts[key] = parts[key] || []).push({ n: n, id: r.recordId, s: txt(r.fields[f['数据']]) });
+      });
+      Object.keys(parts).forEach(function (key) {
+        var ps = parts[key].sort(function (a, b) { return a.n - b.n; });
+        var k = col + '/' + key;
+        IDX[k] = ps.map(function (x) { return x.id; });
+        try { MEM.set(k, JSON.parse(ps.map(function (x) { return x.s; }).join(''))); }
+        catch (e) { console.warn('存档读取失败', k, e); }
+      });
+    });
+  }
+  function num(v) { if (v == null || v === '') return null; if (typeof v === 'number') return v; var x = parseFloat(String(txt(v)).replace(/[$,\s]/g, '')); return isFinite(x) ? x : null; }
+  function loadLed() {
+    var t = T[LEDT]; var f = t.f;
+    return allRecords(t.table).then(function (recs) {
+      recs.forEach(function (r) {
+        var o = {};
+        LEDF.forEach(function (x) { var v = r.fields[f[x[0]]]; o[x[1]] = x[2] === 'N' ? num(v) : txt(v); });
+        o.p = PR[o.p] || o.p; o.d = (o.d || '').slice(0, 10);
+        ['credit', 'slip', 'refund', 'rebound', 'offline'].forEach(function (k) { if (o[k] == null) o[k] = 0; });
+        o.src = o.src || 'manual';
+        if (!o.p || !/^\d{4}-\d{2}-\d{2}$/.test(o.d)) return;
+        var key = o.p + '_' + o.d; var k = 'led/' + key;
+        (IDX[k] = IDX[k] || []).push(r.recordId);
+        MEM.set(k, o);
+      });
+    });
+  }
+  function batches(arr, maxN, maxChars) {
+    var out = [], cur = [], size = 0;
+    arr.forEach(function (x) { var s = JSON.stringify(x).length; if (cur.length && (cur.length >= maxN || size + s > maxChars)) { out.push(cur); cur = []; size = 0; } cur.push(x); size += s; });
+    if (cur.length) out.push(cur); return out;
+  }
+  function seq(list, fn) { return list.reduce(function (p, x) { return p.then(function () { return fn(x); }); }, Promise.resolve()); }
+
+  // 写一批文档：[{col, id, data|null}]
+  function writeDocs(items) {
+    lastOwnWrite = Date.now();
+    var byTable = {};
+    items.forEach(function (it) { var tn = it.col === 'led' ? LEDT : COLS[it.col]; (byTable[tn] = byTable[tn] || []).push(it); });
+    return seq(Object.keys(byTable), function (tn) {
+      var t = T[tn]; var f = t.f; var adds = [], sets = [], dels = [], addKeys = [];
+      byTable[tn].forEach(function (it) {
+        var k = it.col + '/' + it.id; var old = IDX[k] || [];
+        if (it.data == null) { dels = dels.concat(old); IDX[k] = []; return; }
+        var rows;
+        if (it.col === 'led') {
+          var fl = {}; fl[f['键']] = seg(it.id); LEDF.forEach(function (x) { var v = it.data[x[1]]; if (x[1] === 'p') v = PN[v] || v; fl[f[x[0]]] = x[2] === 'N' ? (v == null || v === '' ? null : +v) : seg(v); });
+          rows = [fl];
+        } else {
+          var s = JSON.stringify(it.data); var parts = [];
+          for (var i = 0; i < s.length || i === 0; i += CHUNK) parts.push(s.slice(i, i + CHUNK));
+          rows = parts.map(function (p, n) { var fl = {}; fl[f['键']] = seg(it.id); fl[f['分片']] = seg(String(n)); fl[f['日期']] = seg(it.data.d || ''); fl[f['数据']] = seg(p); fl[f['更新时间']] = seg(it.data.u || it.data.at || ''); return fl; });
+        }
+        var keep = [];
+        rows.forEach(function (fl, n) { if (old[n]) { sets.push({ recordId: old[n], fields: fl }); keep.push(old[n]); } else { adds.push({ fields: fl }); addKeys.push(k); } });
+        dels = dels.concat(old.slice(rows.length));
+        IDX[k] = keep;
+      });
+      return seq(batches(sets, 50, 900000), function (b) { return t.table.setRecords(b); })
+        .then(function () { return seq(batches(adds.map(function (a, i) { return { a: a, k: addKeys[i] }; }), 50, 900000), function (b) {
+          return t.table.addRecords(b.map(function (x) { return x.a; })).then(function (ids) { ids.forEach(function (id, i) { IDX[b[i].k].push(id); }); });
+        }); })
+        .then(function () { return dels.length ? seq(batches(dels, 200, 1e9), function (b) { return t.table.deleteRecords(b); }) : null; })
+        .then(function () { lastOwnWrite = Date.now(); });
+    });
+  }
+
+  function snap(id, data) { return { id: id, exists: data !== undefined, data: function () { return clone(data); } }; }
+  var OPS = { '>=': function (a, b) { return a >= b; }, '>': function (a, b) { return a > b; }, '<=': function (a, b) { return a <= b; }, '<': function (a, b) { return a < b; }, '==': function (a, b) { return a === b; } };
+  function Coll(c, wh) { this.c = c; this.wh = wh || []; }
+  Coll.prototype.where = function (f, op, v) { return new Coll(this.c, this.wh.concat([[f, op, v]])); };
+  Coll.prototype.limit = function () { return this; };
+  Coll.prototype.get = function () {
+    var pre = this.c + '/', docs = [], wh = this.wh;
+    MEM.forEach(function (v, k) { if (k.indexOf(pre) !== 0) return; if (wh.every(function (w) { return OPS[w[1]] ? OPS[w[1]](v[w[0]], w[2]) : true; })) docs.push(snap(k.slice(pre.length), v)); });
+    return Promise.resolve({ docs: docs, size: docs.length });
+  };
+  var DB = {
+    doc: function (path) {
+      var i = path.indexOf('/'); var col = path.slice(0, i), id = path.slice(i + 1);
+      return {
+        get: function () { return Promise.resolve(snap(id, MEM.get(path))); },
+        set: function (data) { var d = clone(data); MEM.set(path, d); return writeDocs([{ col: col, id: id, data: d }]); },
+        delete: function () { MEM.delete(path); return writeDocs([{ col: col, id: id, data: null }]); }
+      };
+    },
+    collection: function (c) { return new Coll(c); }
+  };
+
+  function reloadAll() {
+    MEM.clear(); IDX = {};
+    return seq(Object.keys(COLS), loadCol).then(loadLed);
+  }
+  var ready = null;
+  function init() {
+    return loadSDK().then(function (sdk) {
+      SDK = sdk; base = sdk.bitable.base; FT = sdk.FieldType;
+      return withTimeout(base.getTableMetaList(), 10000).catch(function () { throw new Error('没有在飞书多维表格里打开：请在多维表格右上角“插件 → 自定义插件”里打开'); });
+    }).then(function () {
+      var arch = [['键', 'T'], ['日期', 'T'], ['分片', 'T'], ['数据', 'T'], ['更新时间', 'T']];
+      return seq(Object.keys(COLS), function (c) { return ensureTable(COLS[c], arch); })
+        .then(function () { return ensureTable(LEDT, [['键', 'T']].concat(LEDF.map(function (x) { return [x[0], x[2]]; }))); })
+        .catch(function (e) { throw new Error('建表失败（需要这个多维表格的编辑权限）：' + (e && e.message || e)); });
+    }).then(function () {
+      // 余额台账：主字段“键”自动用 平台_日期
+      return reloadAll();
+    }).then(function () {
+      var fire = function () { if (Date.now() - lastOwnWrite < 3000) return; if (changeCb) changeCb(); };
+      Object.keys(T).forEach(function (n) {
+        var tb = T[n].table;
+        try { tb.onRecordAdd(fire); tb.onRecordModify(fire); tb.onRecordDelete(fire); } catch (e) {}
+      });
+      return DB;
+    });
+  }
+
+  window.OFFLINE = {
+    count: function () { return MEM.size; },
+    onChange: function (cb) { changeCb = cb; },
+    reload: function () { return reloadAll(); },
+    exportPack: function () {
+      var cols = {};
+      MEM.forEach(function (v, k) { var i = k.indexOf('/'); var c = k.slice(0, i), id = k.slice(i + 1); (cols[c] = cols[c] || {})[id] = v; });
+      return JSON.stringify({ app: 'dz-offline', v: 1, exported: new Date().toISOString(), cols: cols });
+    },
+    importPack: function (text, mode, onProg) {
+      var p = JSON.parse(text);
+      if (!p || p.app !== 'dz-offline' || !p.cols) throw new Error('这不是本工具导出的数据包');
+      var items = [];
+      if (mode === 'replace') MEM.forEach(function (v, k) { var i = k.indexOf('/'); var c = k.slice(0, i); if (!(p.cols[c] && p.cols[c][k.slice(i + 1)])) items.push({ col: c, id: k.slice(i + 1), data: null }); });
+      Object.keys(p.cols).forEach(function (c) {
+        if (c !== 'led' && !COLS[c]) return;
+        Object.keys(p.cols[c]).forEach(function (id) {
+          var k = c + '/' + id, v = p.cols[c][id];
+          if (mode !== 'replace' && c === 'led' && MEM.has(k) && MEM.get(k).src !== 'import' && v.src === 'import') return;
+          items.push({ col: c, id: id, data: v });
+        });
+      });
+      items.forEach(function (it) { var k = it.col + '/' + it.id; if (it.data == null) MEM.delete(k); else MEM.set(k, it.data); });
+      var groups = batches(items, 40, 1500000), done = 0;
+      return seq(groups, function (g) { return writeDocs(g).then(function () { done += g.length; if (onProg) onProg(done, items.length); }); }).then(function () { return items.length; });
+    },
+    clearAll: function () { var items = []; MEM.forEach(function (v, k) { var i = k.indexOf('/'); items.push({ col: k.slice(0, i), id: k.slice(i + 1), data: null }); }); MEM.clear(); return writeDocs(items); }
+  };
+  var dl = {
+    save: function (o) {
+      var blob = o.data instanceof Blob ? o.data : new Blob([o.data], { type: 'text/plain;charset=utf-8' });
+      var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = o.filename;
+      document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 3000);
+      return Promise.resolve();
+    }
+  };
+  window.claude = {
+    use: function (name) {
+      if (name === 'downloads') return Promise.resolve(dl);
+      if (name === 'db') { if (!ready) ready = init(); return ready; }
+      return Promise.reject(new Error('unsupported'));
+    }
+  };
+})();
+
+</script>
+<script>
+/* 打单与上线率核对 — parsing + analysis engine (shared by page and Node tests) */
+(function (root) {
+  'use strict';
+  const E = {};
+
+  // ---------- constants ----------
+  E.PLATS = ['HYE', 'TS', 'WT', 'RK', 'HC'];
+  E.PNAME = { HYE: 'HYE', TS: 'Timestar', WT: '万通', RK: '如铠', HC: '海承', '?': '未匹配平台' };
+  E.ONLINE = new Set(['签收成功', '派送途中', '到达待取', '运输途中', '包裹退回', '可能异常', '投递失败', '已上网']);
+  E.PROBLEM = new Set(['可能异常', '包裹退回', '投递失败', '包裹损坏']);
+  E.DEFAULT_CFG = {
+    hazmat: ['IPA-99-04', 'IPA-70-04', 'DE-99-04'],
+    weekStart: 0,            // 0 = 周日开始（与“周汇总”一致）
+    on1: 1, on2: 2, on3: 3,  // 未上线 关注/预警/严重 天数
+    batchN: 5, batchPct: 0.1,
+    baseDays: 30, baseMin: 8,
+    pkgPct: 0.35, pkgAbs: 3, lowPct: 0.4, dayPct: 0.15,
+    ledTol: 0.05,
+    ignoreCh: ['官方面单下单'],
+    tz: 'America/Chicago', // 仓库交单/出库日按美中日期（Wavelink 时间是北京时间）
+    ref: {}                 // 手动参考价 { 'SKU|P': 12.3 }
+  };
+
+  // ---------- small utils ----------
+  const pad = (n) => String(n).padStart(2, '0');
+  E.clean = function (v) {
+    if (v === null || v === undefined) return '';
+    if (typeof v === 'number') return Number.isInteger(v) ? v.toFixed(0) : String(v);
+    let s = String(v).replace(/[\t\r\n ﻿]/g, ' ').trim();
+    const m = s.match(/^="?(.*?)"?$/);
+    if (m && s.startsWith('=')) s = m[1];
+    return s.trim();
+  };
+  E.num = function (v) {
+    if (typeof v === 'number') return v;
+    const s = E.clean(v).replace(/[$,\s]/g, '');
+    if (s === '' || s === '-' || s === '--') return null;
+    const n = Number(s);
+    return isFinite(n) ? n : null;
+  };
+  E.ser2str = function (x) {
+    const ms = Math.round((x - 25569) * 86400000);
+    const d = new Date(ms);
+    return d.getUTCFullYear() + '-' + pad(d.getUTCMonth() + 1) + '-' + pad(d.getUTCDate()) + ' ' +
+      pad(d.getUTCHours()) + ':' + pad(d.getUTCMinutes()) + ':' + pad(d.getUTCSeconds());
+  };
+  E.dt = function (v) {
+    if (typeof v === 'number') return v > 1000 ? E.ser2str(v) : '';
+    if (v instanceof Date) return v.getFullYear() + '-' + pad(v.getMonth() + 1) + '-' + pad(v.getDate()) + ' ' + pad(v.getHours()) + ':' + pad(v.getMinutes()) + ':' + pad(v.getSeconds());
+    const s = E.clean(v);
+    if (!s) return '';
+    const m = s.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+    if (m) return m[1] + '-' + pad(m[2]) + '-' + pad(m[3]) + ' ' + pad(m[4] || 0) + ':' + (m[5] || '00') + ':' + (m[6] || '00');
+    const m2 = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+    if (m2) { let y = m2[3]; if (y.length === 2) y = '20' + y; return y + '-' + pad(m2[1]) + '-' + pad(m2[2]) + ' ' + pad(m2[4] || 0) + ':' + (m2[5] || '00') + ':' + (m2[6] || '00'); }
+    return '';
+  };
+  E.day = (s) => (s || '').slice(0, 10);
+  E.timeOf = function (v) {
+    if (typeof v === 'number') { const f = v - Math.floor(v); const mins = Math.round(f * 1440); return pad(Math.floor(mins / 60) % 24) + ':' + pad(mins % 60); }
+    const s = E.clean(v); const m = s.match(/(\d{1,2}):(\d{2})/); return m ? pad(m[1]) + ':' + m[2] : '';
+  };
+  // 北京时间字符串 -> 指定时区的日期
+  E.bjToDay = function (s, tz) {
+    const m = (s || '').match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})/); if (!m) return '';
+    const t = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4] - 8, +m[5], +m[6]));
+    try { return new Intl.DateTimeFormat('en-CA', { timeZone: tz || 'America/Chicago', year: 'numeric', month: '2-digit', day: '2-digit' }).format(t); }
+    catch (e) { return new Date(t.getTime() - 13 * 3600000).toISOString().slice(0, 10); }
+  };
+  E.baseWO = (wo) => E.clean(wo).replace(/-\d+$/, '');
+  E.addDays = function (d, n) { const t = new Date(d + 'T00:00:00Z'); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); };
+  E.diffDays = (a, b) => Math.round((new Date(a + 'T00:00:00Z') - new Date(b + 'T00:00:00Z')) / 86400000);
+  E.weekStartOf = function (d, ws) { const t = new Date(d + 'T00:00:00Z'); const dow = t.getUTCDay(); const back = (dow - ws + 7) % 7; return E.addDays(d, -back); };
+  E.r2 = (x) => Math.round((x + Number.EPSILON) * 100) / 100;
+  const median = (a) => { if (!a.length) return null; const s = [...a].sort((x, y) => x - y); const m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
+  E.median = median;
+  const uniq = (a) => [...new Set(a.filter(Boolean))];
+  const splitTr = (s) => uniq(E.clean(s).split(/[,;，；\s|]+/).map((x) => x.trim()).filter((x) => x.length >= 8));
+
+  // SKU strings: "A*1 | A*1" -> [{sku:'A', q:1}, {sku:'A', q:1}] (one segment per package)
+  E.skuSegs = function (s) {
+    s = E.clean(s);
+    if (!s) return [];
+    return s.split(/\s*[|]\s*/).map((seg) => {
+      seg = seg.trim();
+      const m = seg.match(/^(.*?)\s*[*xX×]\s*(\d+)\s*$/);
+      return m ? { sku: m[1].trim(), q: +m[2] } : { sku: seg, q: 1 };
+    }).filter((x) => x.sku);
+  };
+  // WL 包裹数：派送单号个数和 SKU 段数取大（WL 一单多件有时只记主单号）
+  E.wlPkgs = (w) => Math.max(w.trs.length, E.skuSegs(w.skus).length, 1);
+  E.platOfCh = (ch) => { ch = ch || ''; if (/^TS-|Timestar/i.test(ch)) return 'TS'; if (/如铠/.test(ch)) return 'RK'; if (/海承/.test(ch)) return 'HC'; if (/万通/.test(ch)) return 'WT'; if (/HYE|环洋/.test(ch)) return 'HYE'; return '?'; };
+  E.skuKey = (seg) => seg.q > 1 ? seg.sku + '*' + seg.q : seg.sku;
+
+  // ---------- CSV ----------
+  E.parseCSV = function (text) {
+    text = text.replace(/^﻿/, '');
+    const rows = []; let row = []; let f = ''; let q = false;
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (q) {
+        if (c === '"') { if (text[i + 1] === '"') { f += '"'; i++; } else q = false; }
+        else f += c;
+      } else if (c === '"') q = true;
+      else if (c === ',') { row.push(f); f = ''; }
+      else if (c === '\n') { row.push(f); rows.push(row); row = []; f = ''; }
+      else if (c === '\r') { /* skip */ }
+      else f += c;
+    }
+    if (f !== '' || row.length) { row.push(f); rows.push(row); }
+    return rows.filter((r) => r.some((x) => String(x).trim() !== ''));
+  };
+
+  // ---------- header helpers ----------
+  const H = (row) => (row || []).map((x) => E.clean(x));
+  function findHeader(rows, need, maxScan) {
+    for (let i = 0; i < Math.min(rows.length, maxScan || 5); i++) {
+      const h = H(rows[i]);
+      if (need.every((n) => h.includes(n))) return i;
+    }
+    return -1;
+  }
+  function colIdx(h, name, last) { return last ? h.lastIndexOf(name) : h.indexOf(name); }
+
+  // ---------- detection ----------
+  // sheets: [{name, rows}] ; returns {kind, ...}
+  E.detect = function (sheets, fileName) {
+    const names = sheets.map((s) => s.name);
+    if (['海承', 'Timestar', '如铠', 'HYE'].filter((n) => names.includes(n)).length >= 2) return { kind: 'LEDGER', label: '各渠道每日打单金额统计（历史余额）' };
+    { const ds = sheets.filter((s) => E.whTabDay(s.name) && findHeader(s.rows, ['SKU', '出库']) >= 0);
+      if (ds.length) { const wh = E.whOfFile(fileName); return { kind: 'WHOUT', wh, label: '仓库发货记录（' + wh + '，' + ds.length + ' 个日期页签）' }; } }
+    for (const s of sheets) {
+      const r = s.rows;
+      if (findHeader(r, ['仓库名称', '订单号', '派送单号', '物流渠道名称']) >= 0) return { kind: 'WL', label: 'Wavelink 出库/待发货报告' };
+      if (findHeader(r, ['物流单号', '状态', '子状态']) >= 0) return { kind: 'T718', label: '718 上线率报告' };
+      if (findHeader(r, ['订单号码', '运单号码', '预扣费金额']) >= 0) return { kind: 'HYE', label: 'HYE 打单报告' };
+      if (findHeader(r, ['系统单号', '跟踪号', '预估总费用(美元)']) >= 0) return { kind: 'TS_SUM', label: 'Timestar 汇总' };
+      if (findHeader(r, ['系统单号', '主跟踪号', '子跟踪号']) >= 0) return { kind: 'TS_DET', label: 'Timestar 详情' };
+      if (findHeader(r, ['订单号', '跟踪号', '打单金额', '预报时间']) >= 0) return { kind: 'WT', label: '万通 打单报告' };
+      if (findHeader(r, ['订单号', '主跟踪号', '子单信息']) >= 0) return { kind: 'RK', label: '如铠 打单报告' };
+      if (findHeader(r, ['订单号', '运单号', '箱序号', '箱号']) >= 0) return { kind: 'HC_DET', label: '海承 详情' };
+      if (findHeader(r, ['订单号', '运单号', '预扣费金额', '件数']) >= 0) return { kind: 'HC_SUM', label: '海承 汇总' };
+    }
+    return { kind: 'UNKNOWN', label: '无法识别：' + (fileName || '') };
+  };
+
+  // label record: {p, wo, b, trs[], dt, d, amt, n, sku, ch, wt, v, st, sid}
+  function mkLabel(o) {
+    o.wo = E.clean(o.wo); o.b = E.baseWO(o.wo); o.d = E.day(o.dt);
+    o.trs = uniq(o.trs || []); o.n = Math.max(o.n || 0, o.trs.length, 1);
+    o.amt = o.amt == null ? 0 : E.r2(Math.abs(o.amt));
+    return o;
+  }
+
+  // 预扣费出账后会清零，金额转到“已释放预扣费金额”/“已出账单金额”
+  function heldAmt(r, c) {
+    const pre = E.num(r[c('预扣费金额')]);
+    if (pre) return pre;
+    const rel = c('已释放预扣费金额') >= 0 ? E.num(r[c('已释放预扣费金额')]) : null;
+    if (rel) return rel;
+    const bil = c('已出账单金额') >= 0 ? E.num(r[c('已出账单金额')]) : null;
+    return bil ? Math.abs(bil) : pre;
+  }
+  // 仓库发货记录：页签名 = 日期（如 10.12），没有年份，取离今天最近的过去日期
+  E.whTabDay = function (name, todayStr) {
+    const m = String(name).trim().match(/^(\d{1,2})\.(\d{1,2})$/); if (!m) return '';
+    const t = todayStr || new Date().toISOString().slice(0, 10); const y = +t.slice(0, 4);
+    let d = y + '-' + pad(m[1]) + '-' + pad(m[2]);
+    if (d > E.addDays(t, 7)) d = (y - 1) + '-' + pad(m[1]) + '-' + pad(m[2]);
+    return d;
+  };
+  E.whOfFile = (fn) => /TZ|MO仓|-MO\b/i.test(fn || '') ? 'TZ' : 'TXW';
+  E.normSku = (s) => String(s || '').trim().toLowerCase();
+  E.parse_WHOUT = function (sheets, wh, fromDay) {
+    const out = [];
+    for (const s of sheets) {
+      const d = E.whTabDay(s.name); if (!d || (fromDay && d < fromDay)) continue;
+      const hi = findHeader(s.rows, ['SKU', '出库']); if (hi < 0) continue;
+      const h = H(s.rows[hi]); const cS = h.indexOf('SKU'), cQ = h.indexOf('出库');
+      const sku = {};
+      for (const r of s.rows.slice(hi + 1)) {
+        const k = E.clean(r[cS]); const q = E.num(r[cQ]);
+        if (!k || !q) continue;
+        sku[k] = E.r2((sku[k] || 0) + Math.abs(q));
+      }
+      out.push({ wh, d, sku });
+    }
+    return out;
+  };
+  E.parse = {};
+  E.parse.HYE = function (sheets) {
+    const out = [];
+    for (const s of sheets) {
+      const hi = findHeader(s.rows, ['订单号码', '运单号码', '预扣费金额']); if (hi < 0) continue;
+      const h = H(s.rows[hi]); const c = (n) => h.indexOf(n);
+      for (const r of s.rows.slice(hi + 1)) {
+        const wo = E.clean(r[c('订单号码')]); if (!wo) continue;
+        const st = E.clean(r[c('订单状态')]);
+        out.push(mkLabel({ p: 'HYE', wo, trs: splitTr(r[c('运单号码')]), dt: E.dt(r[c('订单日期')]), amt: heldAmt(r, c),
+          n: E.num(r[c('件数')]) || 1, sku: E.clean(r[c('备注')]), ch: E.clean(r[c('产品')]), wt: E.num(r[c('重量')]),
+          st, v: /成功/.test(st) ? 1 : 0 }));
+      }
+    }
+    return out;
+  };
+  E.parse.TS_DET = function (sheets) {
+    const map = {};
+    for (const s of sheets) {
+      const hi = findHeader(s.rows, ['系统单号', '主跟踪号', '子跟踪号']); if (hi < 0) continue;
+      const h = H(s.rows[hi]); const c = (n) => h.indexOf(n);
+      for (const r of s.rows.slice(hi + 1)) {
+        const sid = E.clean(r[c('系统单号')]); if (!sid) continue;
+        const m = map[sid] || (map[sid] = { sku: '', trs: [], wt: null });
+        m.trs.push(...splitTr(r[c('子跟踪号')]), ...splitTr(r[c('主跟踪号')]));
+        const sk = E.clean(r[c('备注')]); if (sk && !m.sku) m.sku = sk;
+        if (m.wt == null) m.wt = E.num(r[c('重量(KG)')]);
+      }
+    }
+    return map;
+  };
+  E.parse.TS_SUM = function (sheets, det) {
+    const out = [];
+    for (const s of sheets) {
+      const hi = findHeader(s.rows, ['系统单号', '跟踪号', '预估总费用(美元)']); if (hi < 0) continue;
+      const h = H(s.rows[hi]); const c = (n) => h.indexOf(n);
+      for (const r of s.rows.slice(hi + 1)) {
+        const sid = E.clean(r[c('系统单号')]); if (!sid) continue;
+        const st = E.clean(r[c('状态')]);
+        const refunded = E.clean(r[c('退款审核时间')]) !== '' || /取消|删除|作废|退款/.test(st);
+        const d = det && det[sid];
+        let trs = splitTr(r[c('跟踪号')]);
+        if (d && d.trs.length) trs = uniq([...trs, ...d.trs]);
+        out.push(mkLabel({ p: 'TS', wo: r[c('客户单号')], trs, dt: E.dt(r[c('创建时间')]), amt: E.num(r[c('预估总费用(美元)')]),
+          n: E.num(r[c('总箱数')]) || 1, sku: d ? d.sku : '', ch: E.clean(r[c('渠道名')]), wt: E.num(r[c('总重量(KG)')]),
+          st, v: refunded ? 0 : 1, sid }));
+      }
+    }
+    return out;
+  };
+  E.parse.WT = function (sheets) {
+    const out = [];
+    for (const s of sheets) {
+      const hi = findHeader(s.rows, ['订单号', '跟踪号', '打单金额', '预报时间']); if (hi < 0) continue;
+      const h = H(s.rows[hi]); const c = (n) => h.indexOf(n);
+      for (const r of s.rows.slice(hi + 1)) {
+        const wo = E.clean(r[c('订单号')]); if (!wo) continue;
+        const st = E.clean(r[c('订单状态')]);
+        out.push(mkLabel({ p: 'WT', wo, trs: splitTr(r[c('跟踪号')]), dt: E.dt(r[c('预报时间')]), amt: E.num(r[c('打单金额')]),
+          n: E.num(r[c('总件数')]) || 1, sku: E.clean(r[c('备注')]), ch: E.clean(r[c('快递服务')]), wt: E.num(r[c('预报实重')]),
+          st, v: /取消|删除|失败|退/.test(st) ? 0 : 1 }));
+      }
+    }
+    return out;
+  };
+  E.parse.RK = function (sheets) {
+    const out = [];
+    for (const s of sheets) {
+      const hi = findHeader(s.rows, ['订单号', '主跟踪号', '子单信息']); if (hi < 0) continue;
+      const h = H(s.rows[hi]); const sub = H(s.rows[hi + 1] || []);
+      const c = (n) => h.indexOf(n);
+      const cTr = sub.indexOf('跟踪号'), cRef3 = sub.indexOf('Reference 3'), cWt = sub.indexOf('重量');
+      let cur = null;
+      for (const r of s.rows.slice(hi + 2)) {
+        const wo = E.clean(r[c('订单号')]);
+        if (wo) {
+          const st = E.clean(r[c('状态')]);
+          cur = { p: 'RK', wo, trs: splitTr(r[c('主跟踪号')]), dt: E.dt(r[c('生成日期')]), amt: E.num(r[c('金额')]),
+            sku: cTr >= 0 ? E.clean(r[cRef3]) : '', ch: E.clean(r[c('产品')]), wt: cWt >= 0 ? E.num(r[cWt]) : null,
+            st: st + (E.clean(r[c('取消日期')]) ? '(已取消)' : ''), v: st === '成功' && !E.clean(r[c('取消日期')]) ? 1 : 0, _sub: [] };
+          out.push(cur);
+        }
+        if (cur && cTr >= 0) { const t = E.clean(r[cTr]); if (t.length >= 8) cur._sub.push(t); if (!cur.sku && E.clean(r[cRef3])) cur.sku = E.clean(r[cRef3]); }
+      }
+    }
+    return out.map((o) => { if (o._sub.length) o.trs = uniq([...o._sub]); delete o._sub; return mkLabel(o); });
+  };
+  E.parse.HC_DET = function (sheets) {
+    const map = {};
+    for (const s of sheets) {
+      const hi = findHeader(s.rows, ['订单号', '运单号', '箱序号', '箱号']); if (hi < 0) continue;
+      const h = H(s.rows[hi]); const cWo = h.indexOf('订单号'), cBoxTr = h.lastIndexOf('运单号'), cRef = h.indexOf('参考号'), cWt = h.indexOf('重量');
+      for (const r of s.rows.slice(hi + 1)) {
+        const wo = E.clean(r[cWo]); if (!wo) continue;
+        const m = map[wo] || (map[wo] = { trs: [], sku: '', wt: null });
+        m.trs.push(...splitTr(r[cBoxTr]));
+        const ref = E.clean(r[cRef]); const sk = ref.includes(',') ? ref.slice(ref.lastIndexOf(',') + 1).trim() : '';
+        if (sk && !m.sku) m.sku = sk;
+        if (m.wt == null) m.wt = E.num(r[cWt]);
+      }
+    }
+    return map;
+  };
+  E.parse.HC_SUM = function (sheets, det) {
+    const out = [];
+    for (const s of sheets) {
+      const hi = findHeader(s.rows, ['订单号', '运单号', '预扣费金额', '件数']); if (hi < 0) continue;
+      const h = H(s.rows[hi]); const c = (n) => h.indexOf(n);
+      const cWt = h.findIndex((x) => /^重量/.test(x));
+      for (const r of s.rows.slice(hi + 1)) {
+        const wo = E.clean(r[c('订单号')]); if (!wo) continue;
+        const st = E.clean(r[c('订单状态')]); const del = c('删除时间') >= 0 ? E.clean(r[c('删除时间')]) : '';
+        const d = det && det[wo];
+        let trs = splitTr(r[c('运单号')]); if (d && d.trs.length) trs = uniq([...trs, ...d.trs]);
+        out.push(mkLabel({ p: 'HC', wo, trs, dt: E.dt(r[c('创建时间')]), amt: heldAmt(r, c),
+          n: E.num(r[c('件数')]) || 1, sku: (d && d.sku) || E.clean(r[c('备注')]), ch: E.clean(r[c('产品名称')]), wt: cWt >= 0 ? E.num(r[cWt]) : null,
+          st: st + (del ? '(已删除)' : ''), v: del || /取消|删除|失败/.test(st) ? 0 : 1 }));
+      }
+    }
+    return out;
+  };
+  // Wavelink: {wh, wo, trs[], skus, ch, st, ot, sd}
+  E.parse.WL = function (sheets) {
+    const out = [];
+    for (const s of sheets) {
+      const hi = findHeader(s.rows, ['仓库名称', '订单号', '派送单号', '物流渠道名称']); if (hi < 0) continue;
+      const h = H(s.rows[hi]); const c = (n) => h.indexOf(n);
+      for (const r of s.rows.slice(hi + 1)) {
+        const wo = E.clean(r[c('订单号')]); if (!wo) continue;
+        out.push({ wh: E.clean(r[c('仓库名称')]) || '?', wo, trs: splitTr(r[c('派送单号')]), skus: E.clean(r[c('SKU')]),
+          ch: E.clean(r[c('物流渠道名称')]), st: E.clean(r[c('订单状态')]), ot: E.dt(r[c('下单时间')]), sd: E.dt(r[c('发货时间')]), pick: c('提取时间') >= 0 ? E.dt(r[c('提取时间')]) : '' });
+      }
+    }
+    return out;
+  };
+  // 718: {tr, send, carrier, st, sub, last, on, sign, stay, note}
+  E.parse.T718 = function (sheets) {
+    const out = [];
+    for (const s of sheets) {
+      const hi = findHeader(s.rows, ['物流单号', '状态', '子状态']); if (hi < 0) continue;
+      const h = H(s.rows[hi]); const c = (n) => h.indexOf(n);
+      for (const r of s.rows.slice(hi + 1)) {
+        const tr = E.clean(r[c('物流单号')]); if (tr.length < 8) continue;
+        out.push({ tr, send: E.dt(r[c('发货时间')]), carrier: E.clean(r[c('物流商')]), st: E.clean(r[c('状态')]), sub: E.clean(r[c('子状态')]),
+          last: E.dt(r[c('最近轨迹时间')]), on: E.dt(r[c('上网时间')]), sign: E.dt(r[c('签收时间')]), stay: E.num(r[c('停留（天）')]), note: E.clean(r[c('备注')]) });
+      }
+    }
+    return out;
+  };
+  // Ledger workbook -> [{p,d,time,credit,slip,close,prepay,offline,rebound,refund,src:'import'}]
+  E.parse.LEDGER = function (sheets) {
+    const map = { '海承': 'HC', 'Timestar': 'TS', '万通': 'WT', '如铠': 'RK', 'HYE': 'HYE' };
+    const out = [];
+    for (const s of sheets) {
+      const p = map[s.name]; if (!p) continue;
+      const h = H(s.rows[0]); const c = (n) => h.indexOf(n);
+      for (const r of s.rows.slice(1)) {
+        const d = E.day(E.dt(r[c('日期')])); if (!d) continue;
+        const close = E.num(r[c('可打单金额')]); if (close == null) continue;
+        out.push({ p, d, time: E.timeOf(r[c('时间')]), credit: E.num(r[c('今日新增信用额度')]) || 0, slip: E.num(r[c('今日提供水单金额')]) || 0,
+          close: E.r2(close), prepay: E.num(r[c('预扣费总额')]), offline: Math.abs(E.num(r[c('线下打单总额')]) || 0),
+          rebound: E.num(r[c('反弹金额')]) || 0, refund: E.num(r[c('退款金额')]) || 0, note: '', src: 'import' });
+      }
+    }
+    return out;
+  };
+
+  // Parse one upload batch: files = [{name, sheets, det:{kind,label}}]
+  E.parseBatch = function (files) {
+    const res = { labels: [], wl: [], t718: [], ledger: [], whout: [], warn: [], info: [] };
+    const tsDet = {}, hcDet = {}; let tsDetSeen = false, hcDetSeen = false, tsSumSeen = false, hcSumSeen = false;
+    for (const f of files) {
+      if (f.det.kind === 'TS_DET') { Object.assign(tsDet, E.parse.TS_DET(f.sheets)); tsDetSeen = true; }
+      if (f.det.kind === 'HC_DET') { Object.assign(hcDet, E.parse.HC_DET(f.sheets)); hcDetSeen = true; }
+    }
+    for (const f of files) {
+      const k = f.det.kind; let n = 0;
+      if (k === 'HYE') { const a = E.parse.HYE(f.sheets); res.labels.push(...a); n = a.length; }
+      else if (k === 'TS_SUM') { const a = E.parse.TS_SUM(f.sheets, tsDet); res.labels.push(...a); n = a.length; tsSumSeen = true; }
+      else if (k === 'WT') { const a = E.parse.WT(f.sheets); res.labels.push(...a); n = a.length; }
+      else if (k === 'RK') { const a = E.parse.RK(f.sheets); res.labels.push(...a); n = a.length; }
+      else if (k === 'HC_SUM') { const a = E.parse.HC_SUM(f.sheets, hcDet); res.labels.push(...a); n = a.length; hcSumSeen = true; }
+      else if (k === 'WL') { const a = E.parse.WL(f.sheets); res.wl.push(...a); n = a.length; }
+      else if (k === 'T718') { const a = E.parse.T718(f.sheets); res.t718.push(...a); n = a.length; }
+      else if (k === 'LEDGER') { const a = E.parse.LEDGER(f.sheets); res.ledger.push(...a); n = a.length; }
+      else if (k === 'WHOUT') { const a = E.parse_WHOUT(f.sheets, f.det.wh, E.addDays(new Date().toISOString().slice(0, 10), -150)); res.whout.push(...a); n = a.length; }
+      else if (k === 'TS_DET' || k === 'HC_DET') { n = Object.keys(k === 'TS_DET' ? tsDet : hcDet).length; }
+      res.info.push({ name: f.name, kind: k, label: f.det.label, n });
+    }
+    if (tsSumSeen && !tsDetSeen) res.warn.push('只上传了 Timestar 汇总，没有详情：SKU 将从 Wavelink 匹配，多箱子单号可能缺失。');
+    if (tsDetSeen && !tsSumSeen) res.warn.push('Timestar 详情需要和汇总一起上传（汇总里才有金额），本次详情未入库。');
+    if (hcSumSeen && !hcDetSeen) res.warn.push('只上传了海承汇总，没有详情：一单多箱的子运单号会缺失，上线率可能漏查。');
+    if (hcDetSeen && !hcSumSeen) res.warn.push('海承详情需要和汇总一起上传（汇总里才有金额），本次详情未入库。');
+    return res;
+  };
+
+  // ---------- storage row codecs ----------
+  E.labToRow = (l) => [l.wo, l.trs.join(','), l.dt, l.amt, l.n, l.sku || '', l.ch || '', l.wt == null ? '' : l.wt, l.v, l.st || ''];
+  E.rowToLab = (p, r) => mkLabel({ p, wo: r[0], trs: r[1] ? r[1].split(',') : [], dt: r[2], amt: r[3], n: r[4], sku: r[5], ch: r[6], wt: r[7] === '' ? null : r[7], v: r[8], st: r[9] });
+  E.wlToRow = (w) => [w.wo, w.trs.join(','), w.skus, w.ch, w.st, w.ot, w.sd, w.pick || ''];
+  E.rowToWl = (wh, r) => ({ wh, wo: r[0], trs: r[1] ? r[1].split(',') : [], skus: r[2], ch: r[3], st: r[4], ot: r[5], sd: r[6], pick: r[7] || '' });
+  E.tToRow = (t) => [t.tr, t.send, t.carrier, t.st, t.sub, t.last, t.on, t.sign, t.stay == null ? '' : t.stay, t.note];
+  E.rowToT = (r) => ({ tr: r[0], send: r[1], carrier: r[2], st: r[3], sub: r[4], last: r[5], on: r[6], sign: r[7], stay: r[8] === '' ? null : r[8], note: r[9] });
+
+  // Group parsed batch into storage docs (merging into existing docs passed as maps)
+  // existing: {lab:{id:doc}, wl:{id:doc}, trk:{id:doc}}; returns {docs:[{col,id,data}], cov:{P:[from,to]}}
+  E.buildDocs = function (parsed, existing, nowIso) {
+    const docs = []; const cov = {};
+    const g = {};
+    for (const l of parsed.labels) { if (!l.d) continue; const id = l.p + '_' + l.d; (g[id] = g[id] || []).push(l); const c = cov[l.p] || (cov[l.p] = [l.d, l.d]); if (l.d < c[0]) c[0] = l.d; if (l.d > c[1]) c[1] = l.d; }
+    for (const id in g) {
+      const [p, d] = id.split('_');
+      const ex = (existing.lab && existing.lab[id]) ? existing.lab[id].rows : [];
+      const m = new Map(); const key = (r) => r[0] + '|' + r[1];
+      ex.forEach((r) => m.set(key(r), r));
+      // newer rows replace rows with same WO+tracking; a re-uploaded WO also replaces older failed rows of same WO
+      for (const l of g[id]) { const r = E.labToRow(l); m.set(key(r), r); }
+      docs.push({ col: 'lab', id, data: { p, d, u: nowIso, rows: [...m.values()] } });
+    }
+    const gw = {};
+    for (const w of parsed.wl) { const d = E.day(w.ot) || E.day(w.sd); if (!d) continue; const id = w.wh + '_' + d; (gw[id] = gw[id] || []).push(w); }
+    for (const id in gw) {
+      const i = id.lastIndexOf('_'); const wh = id.slice(0, i), d = id.slice(i + 1);
+      const ex = (existing.wl && existing.wl[id]) ? existing.wl[id].rows : [];
+      const m = new Map(); ex.forEach((r) => m.set(r[0], r));
+      for (const w of gw[id]) {
+        const old = m.get(w.wo); const r = E.wlToRow(w);
+        if (old && !r[1] && old[1]) r[1] = old[1];   // keep known tracking if new report lacks it
+        if (old && !r[6] && old[6]) r[6] = old[6];
+        if (old && !r[7] && old[7]) r[7] = old[7];
+        m.set(w.wo, r);
+      }
+      docs.push({ col: 'wl', id: id.replace(/[^A-Za-z0-9_\-.~:@+]/g, '-'), data: { wh, d, u: nowIso, rows: [...m.values()] } });
+    }
+    const gt = {};
+    for (const t of parsed.t718) { const d = E.day(t.send) || 'nodate'; (gt[d] = gt[d] || []).push(t); }
+    for (const d in gt) {
+      const ex = (existing.trk && existing.trk[d]) ? existing.trk[d].rows : [];
+      const m = new Map(); ex.forEach((r) => m.set(r[0], r));
+      for (const t of gt[d]) m.set(t.tr, E.tToRow(t));
+      docs.push({ col: 'trk', id: d, data: { d, u: nowIso, rows: [...m.values()] } });
+    }
+    for (const l of parsed.ledger) docs.push({ col: 'led', id: l.p + '_' + l.d, data: Object.assign({}, l, { u: nowIso }) });
+    for (const r of (parsed.whout || [])) docs.push({ col: 'who', id: r.wh + '_' + r.d, data: { wh: r.wh, d: r.d, u: nowIso, sku: r.sku } });
+    return { docs, cov };
+  };
+
+  // ---------- model ----------
+  // state: {labels[], wl[], trk: [], ledger: [], notes:{}, spec:{}, cfg, cov:{P:[[a,b]...]}}
+  E.buildModel = function (st) {
+    const cfg = Object.assign({}, E.DEFAULT_CFG, st.cfg || {});
+    const M = { cfg, labels: st.labels || [], wl: st.wl || [], trk: st.trk || [], ledger: st.ledger || [], whOut: st.whout || [], notes: st.notes || {}, spec: st.spec || {}, cov: st.cov || {} };
+    M.valid = M.labels.filter((l) => l.v);
+    M.labByTr = new Map(); M.labsByBase = new Map(); M.voidByTr = new Map();
+    for (const l of M.labels) for (const t of l.trs) { if (l.v) M.labByTr.set(t, l); else if (!M.labByTr.has(t)) M.voidByTr.set(t, l); }
+    for (const l of M.valid) { const a = M.labsByBase.get(l.b) || []; a.push(l); M.labsByBase.set(l.b, a); }
+    M.wlByTr = new Map(); M.wlByWO = new Map();
+    for (const w of M.wl) { M.wlByWO.set(w.wo, w); for (const t of w.trs) M.wlByTr.set(t, w); }
+    M.trkByTr = new Map(); for (const t of M.trk) M.trkByTr.set(t.tr, t);
+    M.dates = uniq(M.valid.map((l) => l.d)).sort();
+    M.whs = uniq(M.wl.map((w) => w.wh)).sort();
+    // packages with per-package SKU and cost
+    M.pkgs = [];
+    for (const l of M.valid) for (const pk of E.labelPackages(M, l)) M.pkgs.push(pk);
+    M.pkgByTr = new Map(); for (const pk of M.pkgs) if (pk.tr) M.pkgByTr.set(pk.tr, pk);
+    return M;
+  };
+
+  E.labelPackages = function (M, l) {
+    const nPk = Math.max(l.n || 1, l.trs.length, 1);
+    let w = null; for (const t of l.trs) { if (M.wlByTr.has(t)) { w = M.wlByTr.get(t); break; } }
+    if (!w) w = M.wlByWO.get(l.b) || null;
+    const segsW = w ? E.skuSegs(w.skus) : [];
+    const segsL = E.skuSegs(l.sku);
+    let per = [];
+    if (segsW.length) {
+      if (segsW.length === nPk) per = segsW;
+      else {
+        const k = (l.wo.match(/-(\d+)$/) || [])[1];
+        const allSame = segsW.every((s) => E.skuKey(s) === E.skuKey(segsW[0]));
+        if (allSame) per = Array(nPk).fill(segsW[0]);
+        else if (k && nPk === 1 && segsW[+k - 1]) per = [segsW[+k - 1]];
+      }
+    }
+    if (!per.length && segsL.length) per = segsL.length === nPk ? segsL : Array(nPk).fill(segsL[0]);
+    if (!per.length) per = Array(nPk).fill({ sku: '未知SKU', q: 1 });
+    const cost = l.amt / nPk;
+    const out = [];
+    for (let i = 0; i < nPk; i++) {
+      const seg = per[i] || per[0];
+      out.push({ tr: l.trs[i] || null, wo: l.wo, b: l.b, p: l.p, d: l.d, dt: l.dt, ch: l.ch, sku: E.skuKey(seg), base: seg.sku, q: seg.q,
+        cost, wt: l.wt == null ? null : l.wt / nPk, wh: w ? w.wh : '', wlCh: w ? w.ch : '', wlSt: w ? w.st : '', sd: w ? w.sd : '' });
+    }
+    return out;
+  };
+
+  // ---------- 1. 交单核对 ----------
+  E.reconcile = function (M, D) {
+    const cfg = M.cfg; const ign = new Set(cfg.ignoreCh || []);
+    const labsD = M.valid.filter((l) => l.d === D);
+    const labTrs = []; const shortTr = [];
+    for (const l of labsD) { l.trs.forEach((t) => labTrs.push({ t, l })); if (l.trs.length < l.n) shortTr.push(l); }
+    // WL batch D: packages matched to labels on D + unmatched WL orders placed on D
+    const batch = new Map(); // tr -> wl
+    const noTrOrders = [];
+    for (const { t } of labTrs) { const w = M.wlByTr.get(t); if (w) batch.set(t, w); }
+    for (const w of M.wl) {
+      if (ign.has(w.ch)) continue;
+      if (!w.trs.length) { if (E.day(w.ot) === D) noTrOrders.push(w); continue; }
+      const labelled = w.trs.some((t) => M.labByTr.has(t));
+      if (!labelled && E.day(w.ot) === D) w.trs.forEach((t) => batch.set(t, w));
+    }
+    const matched = [], labNoWL = [], wlNoLab = [];
+    const child = [], cancelled = [];
+    for (const { t, l } of labTrs) {
+      const sameWO = M.wlByWO.get(l.b);
+      if (sameWO && sameWO.st === '已取消') { cancelled.push({ t, l, w: sameWO, spec: M.spec[t] || null }); continue; }
+      if (M.wlByTr.has(t)) { matched.push({ t, l, w: M.wlByTr.get(t) }); continue; }
+      if (sameWO && sameWO.trs.length) {
+        // 一单多件：WL 只记了主单号，按 SKU 件数判断这个子面单是否合理
+        const nLabWO = (M.labsByBase.get(l.b) || []).reduce((s, x) => s + Math.max(x.trs.length, 1), 0);
+        if (nLabWO <= E.wlPkgs(sameWO)) { child.push({ t, l, w: sameWO }); matched.push({ t, l, w: sameWO, child: true }); continue; }
+      }
+      const type = sameWO && sameWO.trs.length ? 'dup' : 'nowl';
+      labNoWL.push({ t, l, type, w: sameWO || null, spec: M.spec[t] || null });
+    }
+    const voidShipped = [];
+    for (const [t, w] of batch) if (!M.labByTr.has(t)) { const vd = M.voidByTr.get(t) || null; if (vd && w.st === '已发货') voidShipped.push({ t, w, l: vd }); else wlNoLab.push({ t, w, voided: vd }); }
+    // over-printing: base WO with more valid label packages than WL packages
+    const over = [];
+    const bases = uniq(labsD.map((l) => l.b));
+    for (const b of bases) {
+      const labs = M.labsByBase.get(b) || []; const w = M.wlByWO.get(b);
+      const nLab = labs.reduce((s, l) => s + l.n, 0);
+      const plats = uniq(labs.map((l) => l.p));
+      const nLabT = labs.reduce((s2, l) => s2 + Math.max(l.trs.length, 1), 0);
+      if (w && w.st !== '已取消' && w.trs.length && nLabT > E.wlPkgs(w)) over.push({ b, labs, w, nLab: nLabT, nWl: E.wlPkgs(w), plats });
+      else if (!w && plats.length > 1) over.push({ b, labs, w: null, nLab, nWl: null, plats });
+    }
+    // shipped vs not shipped within batch
+    const notShipped = [];
+    const seenWO = new Set();
+    for (const [, w] of batch) { if (seenWO.has(w.wo)) continue; seenWO.add(w.wo); if (w.st && w.st !== '已发货') notShipped.push(w); }
+    // per-platform counts & amount
+    const byP = {};
+    for (const l of labsD) { const o = byP[l.p] || (byP[l.p] = { pk: 0, amt: 0, labels: 0, matched: 0, nowl: 0 }); o.pk += l.trs.length || l.n; o.amt += l.amt; o.labels++; }
+    for (const m of matched) byP[m.l.p].matched++;
+    for (const m of labNoWL) byP[m.l.p].nowl++;
+    // per-SKU units: labelled vs shipped (by batch)
+    const sku = {};
+    const addS = (k, f, q) => { const o = sku[k] || (sku[k] = { lab: 0, wl: 0, ship: 0 }); o[f] += q; };
+    for (const l of labsD) for (const pk of E.labelPackages(M, l)) addS(pk.base, 'lab', pk.q);
+    seenWO.clear();
+    for (const [, w] of batch) { if (seenWO.has(w.wo)) continue; seenWO.add(w.wo); for (const s of E.skuSegs(w.skus)) { addS(s.sku, 'wl', s.q); if (w.st === '已发货') addS(s.sku, 'ship', s.q); } }
+    // warehouses present for the batch
+    const whCov = {}; for (const w of M.wl) { const d = E.day(w.ot); if (d === D || d === E.addDays(D, -1)) whCov[w.wh] = true; }
+    const labPk = labTrs.length, wlPk = batch.size;
+    const whMax = {}; for (const w of M.wl) { const d0 = E.day(w.ot); if (d0 && (!whMax[w.wh] || d0 > whMax[w.wh])) whMax[w.wh] = d0; }
+    const wlMax = Object.values(whMax).sort()[0] || '';
+    const wlStale = !wlMax || D > wlMax;
+    const pend = labNoWL.filter((x) => !(x.spec && x.spec.ok));
+    return { D, wlMax, wlStale, child, cancelled, voidShipped, labsD, labPk, wlPk, diff: labPk - wlPk, matched, labNoWL, pend, wlNoLab, over, notShipped, noTrOrders, shortTr, byP, sku, whCov,
+      amt: E.r2(labsD.reduce((s, l) => s + l.amt, 0)) };
+  };
+
+  // ---------- 仓库口径：已交运（WL 提取时间的北京日期，不换算） vs 已发货（仓库发货记录当天页签的“出库”） ----------
+  E.whFlow = function (M, from, to, wh) {
+    const days = {};
+    const D = (d) => days[d] || (days[d] = { d, sku: {}, jd: 0, ck: 0, hasRec: false, nOrd: 0 });
+    const S = (o, name) => { const k = E.normSku(name); return o.sku[k] || (o.sku[k] = { name, jd: 0, ck: 0, noLab: 0, voidLab: 0, ords: [] }); };
+    for (const w of M.wl) {
+      if (wh && w.wh !== wh) continue;
+      if (!w.pick || w.st === '已取消') continue;
+      const jd = E.day(w.pick); if (jd < from || jd > to) continue;
+      const segs = E.skuSegs(w.skus); if (!segs.length) continue;
+      const hasLab = w.trs.some((t) => M.labByTr.has(t)) || (M.labsByBase.get(w.wo) || []).length > 0;
+      const isVoid = !hasLab && w.trs.some((t) => M.voidByTr.has(t));
+      D(jd).nOrd++;
+      for (const g of segs) { const o = S(D(jd), g.sku); o.jd += g.q; D(jd).jd += g.q; if (!hasLab) o.noLab += g.q; if (isVoid) o.voidLab += g.q; o.ords.push(w); }
+    }
+    for (const r of M.whOut) {
+      if (wh && r.wh !== wh) continue;
+      if (r.d < from || r.d > to) continue;
+      const day = D(r.d); day.hasRec = true;
+      for (const [k, q] of Object.entries(r.sku || {})) { const o = S(day, k); o.ck = E.r2(o.ck + q); day.ck = E.r2(day.ck + q); }
+    }
+    for (const d in days) { const o = days[d]; o.short = 0; if (o.hasRec) for (const k in o.sku) { const x = o.sku[k]; if (x.jd > x.ck) o.short = E.r2(o.short + x.jd - x.ck); } }
+    return { days };
+  };
+
+  // ---------- 2. 上线率 ----------
+  E.online = function (M, opts) {
+    const cfg = M.cfg; const now = opts && opts.now ? opts.now : null;
+    const rows = [];
+    for (const t of M.trk) {
+      const pk = M.pkgByTr.get(t.tr); const w = M.wlByTr.get(t.tr); const l = M.labByTr.get(t.tr);
+      const shipT = (w && w.sd) || t.send;
+      const sd = E.day(shipT) || E.day(t.send);
+      const on = E.ONLINE.has(t.st);
+      const prob = E.PROBLEM.has(t.st) || E.PROBLEM.has(t.sub);
+      let days = t.stay;
+      if (days == null && shipT && now) days = (new Date(now.replace(' ', 'T') + 'Z') - new Date(shipT.replace(' ', 'T') + 'Z')) / 86400000;
+      let lvl = 0;
+      if (!on) lvl = days == null ? 1 : days >= cfg.on3 ? 3 : days >= cfg.on2 ? 2 : days >= cfg.on1 ? 1 : 0;
+      const quiet = /^无需关注/.test(t.note || '');
+      const vd = !l ? M.voidByTr.get(t.tr) || null : null;
+      rows.push({ tr: t.tr, t, on, prob, quiet, days, lvl, sd, void: vd, p: l ? l.p : vd ? vd.p : E.platOfCh(w && w.ch), pGuess: !l && !!(w && E.platOfCh(w.ch) !== '?'), wo: (w && w.wo) || (l && l.wo) || '', wh: (w && w.wh) || '', sku: pk ? pk.sku : (w ? w.skus : (l ? l.sku : '')), ch: l ? l.ch : '', wlCh: w ? w.ch : '', note: M.notes[t.tr] || null });
+    }
+    const byDay = {};
+    for (const r of rows) {
+      const o = byDay[r.sd] || (byDay[r.sd] = { d: r.sd, tot: 0, on: 0, off: 0, prob: 0, byP: {}, byWh: {} });
+      o.tot++; r.on ? o.on++ : o.off++; if (r.prob) o.prob++;
+      const bp = o.byP[r.p] || (o.byP[r.p] = { tot: 0, off: 0 }); bp.tot++; if (!r.on) bp.off++;
+      const bw = o.byWh[r.wh || '?'] || (o.byWh[r.wh || '?'] = { tot: 0, off: 0 }); bw.tot++; if (!r.on) bw.off++;
+    }
+    const days = Object.values(byDay).sort((a, b) => (a.d < b.d ? 1 : -1));
+    // batch alerts: not online grouped by ship day × platform × warehouse
+    const grp = {};
+    for (const r of rows) {
+      const k = r.sd + '|' + r.p + '|' + (r.wh || '?');
+      const o = grp[k] || (grp[k] = { sd: r.sd, p: r.p, wh: r.wh || '?', tot: 0, off: [], skus: {} });
+      o.tot++; if (!r.on) { o.off.push(r); const segs = E.skuSegs(r.sku); (segs.length ? segs : [{ sku: r.sku || '无SKU', q: 1 }]).forEach((g2) => { o.skus[g2.sku] = (o.skus[g2.sku] || 0) + g2.q; }); if (r.void) o.nVoid = (o.nVoid || 0) + 1; }
+    }
+    const batches = Object.values(grp).filter((g) => g.off.length && (g.off.length >= cfg.batchN || (g.off.length >= 3 && g.off.length / g.tot >= cfg.batchPct)))
+      .map((g) => { const ds = g.off.map((r) => r.days || 0); const md = median(ds); return Object.assign(g, { maxDays: Math.max(...ds), medDays: md, lvl: md >= cfg.on2 ? 3 : md >= cfg.on1 ? 2 : 1 }); }).sort((a, b) => b.off.length - a.off.length);
+    const off = rows.filter((r) => !r.on && !r.quiet).sort((a, b) => (b.days || 0) - (a.days || 0));
+    const probs = rows.filter((r) => r.prob && !r.quiet);
+    return { rows, days, off, probs, batches };
+  };
+  // labels (valid) whose trackings were never uploaded to 718
+  E.missing718 = function (M, uptoDay, fromDay) {
+    const out = [];
+    for (const l of M.valid) {
+      if (l.d > uptoDay || (fromDay && l.d < fromDay)) continue;
+      for (const t of l.trs) if (!M.trkByTr.has(t)) out.push({ t, l, w: M.wlByTr.get(t) || null });
+    }
+    return out;
+  };
+
+  // ---------- 3/6. 均价 & 异常 ----------
+  function mad(a, m) { return median(a.map((x) => Math.abs(x - m))); }
+  E.baseline = function (M, sku, p, D) {
+    const cfg = M.cfg; const from = E.addDays(D, -cfg.baseDays);
+    const xs = M.pkgs.filter((k) => k.sku === sku && k.p === p && k.d < D && k.d >= from && k.cost > 0).map((k) => k.cost);
+    const ws = M.pkgs.filter((k) => k.sku === sku && k.p === p && k.d < D && k.d >= from && k.wt).map((k) => k.wt);
+    const ref = cfg.ref && cfg.ref[sku + '|' + p];
+    if (xs.length < cfg.baseMin && !ref) return { n: xs.length, med: null };
+    const med = ref || median(xs);
+    return { n: xs.length, med, mad: xs.length ? mad(xs, median(xs)) : 0, mean: xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : null, wmed: median(ws), ref: !!ref,
+      p10: xs.length ? [...xs].sort((a, b) => a - b)[Math.floor(xs.length * 0.1)] : null, p90: xs.length ? [...xs].sort((a, b) => a - b)[Math.floor(xs.length * 0.9)] : null };
+  };
+  E.anomalies = function (M, D) {
+    const cfg = M.cfg; const out = [];
+    const today = M.pkgs.filter((k) => k.d === D && k.cost > 0);
+    const g = {};
+    for (const k of today) { const id = k.sku + '|' + k.p; (g[id] = g[id] || []).push(k); }
+    for (const id in g) {
+      const [sku, p] = id.split('|'); const ks = g[id];
+      const b = E.baseline(M, sku, p, D); if (!b.med) continue;
+      const hi = ks.filter((k) => k.cost > b.med * (1 + cfg.pkgPct) && k.cost - b.med > cfg.pkgAbs);
+      const lo = ks.filter((k) => k.cost < b.med * (1 - cfg.lowPct));
+      const avg = ks.reduce((s, k) => s + k.cost, 0) / ks.length;
+      const dayHigh = ks.length >= 3 && avg > b.med * (1 + cfg.dayPct);
+      const wts = ks.filter((k) => k.wt).map((k) => k.wt); const wmed = median(wts);
+      const chs = {}; ks.forEach((k) => { chs[k.ch] = (chs[k.ch] || 0) + 1; });
+      if (dayHigh || hi.length || lo.length) {
+        let sev = 'yellow', why = [];
+        const share = hi.length / ks.length;
+        if (dayHigh && share >= 0.5) { sev = 'red'; why.push('当天 ' + Math.round(share * 100) + '% 的包裹都高于历史中位价，同时整体上涨，像是渠道方价格表/燃油附加费/分区配置被改动，或选错了渠道产品'); }
+        else if (dayHigh) { sev = 'orange'; why.push('当天均价高于历史中位价 ' + Math.round((avg / b.med - 1) * 100) + '%'); }
+        if (hi.length && share < 0.5) why.push(hi.length + ' 个包裹单价异常偏高，多为偏远/住宅/超长超重附加费或单个订单重量尺寸录入错误');
+        if (wmed && b.wmed && Math.abs(wmed / b.wmed - 1) > 0.1) why.push('预报重量中位数 ' + E.r2(wmed) + ' 与历史 ' + E.r2(b.wmed) + ' 不一致，检查渠道方的重量/尺寸配置');
+        if (lo.length) { why.push(lo.length + ' 个包裹单价异常偏低，可能少报了重量或尺寸，之后有被反弹补扣的风险'); if (sev === 'yellow' && lo.length >= 3) sev = 'orange'; }
+        out.push({ sev, sku, p, n: ks.length, avg, med: b.med, base: b, hi, lo, dayHigh, chs, wmed, why });
+      }
+    }
+    const rank = { red: 0, orange: 1, yellow: 2 };
+    return out.sort((a, b) => rank[a.sev] - rank[b.sev] || b.n - a.n);
+  };
+  // SKU × platform average over a date range
+  E.skuAvg = function (M, from, to) {
+    const t = {};
+    for (const k of M.pkgs) {
+      if (k.d < from || k.d > to) continue;
+      const o = t[k.sku] || (t[k.sku] = { sku: k.sku, n: 0, amt: 0, byP: {} });
+      o.n++; o.amt += k.cost;
+      const bp = o.byP[k.p] || (o.byP[k.p] = { n: 0, amt: 0 }); bp.n++; bp.amt += k.cost;
+    }
+    return Object.values(t).sort((a, b) => b.n - a.n);
+  };
+  E.skuTrend = function (M, sku, from, to, by) {
+    const t = {};
+    for (const k of M.pkgs) {
+      if (k.sku !== sku || k.d < from || k.d > to) continue;
+      const key = by === 'week' ? E.weekStartOf(k.d, M.cfg.weekStart) : k.d;
+      const o = t[key] || (t[key] = { key, n: 0, amt: 0, byP: {} }); o.n++; o.amt += k.cost;
+      const bp = o.byP[k.p] || (o.byP[k.p] = { n: 0, amt: 0 }); bp.n++; bp.amt += k.cost;
+    }
+    return Object.values(t).sort((a, b) => (a.key < b.key ? -1 : 1));
+  };
+
+  // ---------- 4. 余额核对 ----------
+  E.covered = function (M, p, d) { return (M.cov[p] || []).some((r) => d >= r[0] && d <= r[1]); };
+  E.sysAmt = function (M, p, d) { return E.r2(M.valid.filter((l) => l.p === p && l.d === d).reduce((s, l) => s + l.amt, 0)); };
+  E.ledgerRows = function (M, p) {
+    const es = M.ledger.filter((e) => e.p === p).sort((a, b) => (a.d < b.d ? -1 : 1));
+    const out = []; let prev = null;
+    for (const e of es) {
+      const cov = E.covered(M, p, e.d);
+      const sys = cov ? E.sysAmt(M, p, e.d) : null;
+      const used = sys != null ? sys : (e.prepay || 0);
+      const open = prev && prev.close != null ? prev.close : null;
+      const calc = open == null ? null : E.r2(open + (e.credit || 0) - used - (e.offline || 0) + (e.rebound || 0) + (e.refund || 0));
+      const diff = calc == null || e.close == null ? null : E.r2(e.close - calc);
+      const r = { e, p, d: e.d, open, sys, used, cov, calc, diff, prevD: prev ? prev.d : null };
+      r.ok = diff == null ? null : Math.abs(diff) <= M.cfg.ledTol;
+      r.prepayGap = sys != null && e.prepay != null && e.prepay !== 0 ? E.r2(e.prepay - sys) : null;
+      out.push(r); prev = e;
+    }
+    for (let i = 0; i < out.length; i++) { out[i]._prev = out[i - 1] || null; out[i]._next = out[i + 1] || null; out[i]._later = out.slice(i + 1, i + 15); }
+    for (const r of out) { r.why = E.ledgerWhy(M, r); r.explained = r.ok === false && r.why.some((w) => /作废退款|两天合起来是平的|就对平了/.test(w)); }
+    for (const r of out) { delete r._prev; delete r._next; delete r._later; }
+    return out;
+  };
+  E.ledgerWhy = function (M, r) {
+    const why = []; const e = r.e;
+    if (r.open == null) { why.push('没有上一条期末记录，无法推算期初'); return why; }
+    if (r.diff == null) return why;
+    const tol = M.cfg.ledTol;
+    if (r.prepayGap != null && Math.abs(r.prepayGap) > tol) {
+      why.push('手填预扣费总额比系统报告' + (r.prepayGap > 0 ? '多 ' : '少 ') + Math.abs(r.prepayGap).toFixed(2) + '：' + (r.prepayGap > 0 ? '报告可能导出得早，漏了最后几单；或有面单之后被取消/退款，从报告中消失' : '手填漏算了部分面单，或报告包含了被取消但仍计费的面单'));
+    }
+    if (Math.abs(r.diff) <= tol) return why;
+    const d = r.diff;
+    if (!e.credit && e.slip && Math.abs(d - e.slip) <= Math.max(tol, e.slip * 0.01)) why.push('当天充值只填在“水单金额”（' + e.slip + '），“新增额度/充值”是空的：把充值金额补进新增额度就对平了');
+    if (e.credit && Math.abs(d + e.credit) <= Math.max(tol, e.credit * 0.01)) why.push('登记了新增额度 ' + e.credit + '，但平台余额没有增加：确认这笔充值是否真的到账，或者是不是重复登记');
+    if (r._next && r._next.diff != null && Math.abs(r._next.diff + d) <= Math.max(1, Math.abs(d) * 0.02)) why.push('第二天（' + r._next.d + '）出现方向相反、金额相同的差额，多半是这天余额抄早了或抄错了，两天合起来是平的');
+    if (d < 0 && r._later) {
+      const hit = r._later.find((x) => x.d > r.d && x.d <= E.addDays(r.d, 21) && [x.e.refund, x.e.rebound].some((v) => v && Math.abs(v + d) <= tol));
+      if (hit) why.push(hit.d + ' 有一笔相同金额（' + (-d).toFixed(2) + '）的退款/反弹：这张面单当天扣了钱，之后作废退款，平台报告里已经删掉了，所以报告金额比实扣少');
+    }
+    if (r._prev && r._prev.diff != null && Math.abs(r._prev.diff + d) <= Math.max(1, Math.abs(d) * 0.02)) why.push('和前一天（' + r._prev.d + '）的差额正好抵消，两天合起来是平的');
+    if (e.slip && e.credit && Math.abs(Math.abs(d) - Math.abs(e.slip - e.credit)) <= tol) why.push('差额正好等于水单金额与新增额度之差（' + E.r2(e.slip - e.credit) + '），确认实际到账/入账的充值金额');
+    if (d < 0) {
+      // look for a single label amount that explains the gap
+      const hit = M.valid.find((l) => l.p === r.p && Math.abs(l.amt + d) <= tol && l.d >= E.addDays(r.d, -3) && l.d <= r.d);
+      if (hit) why.push('差额与面单 ' + hit.wo + '（' + hit.d + '，' + hit.amt.toFixed(2) + '）金额一致：可能这张面单被重复扣费，或扣在了这一天');
+      if (-d < 5) why.push('平台多扣了 ' + (-d).toFixed(2) + '：多为反弹/附加费（地址更正、偏远、超重）还没录入“反弹金额”');
+      else why.push('平台多扣了 ' + (-d).toFixed(2) + '：有没录入的线下打单、反弹补扣，或上传的报告不完整');
+    } else {
+      why.push('平台余额比推算多 ' + d.toFixed(2) + '：可能有退款/取消面单返还、充值多到账还没录入，或系统报告多算了已取消的面单');
+    }
+    return why;
+  };
+
+  // ---------- 5. 区间/周汇总 ----------
+  E.summary = function (M, from, to, by) {
+    const haz = new Set(M.cfg.hazmat);
+    const buckets = {};
+    const keyOf = (d) => by === 'day' ? d : by === 'all' ? from : E.weekStartOf(d, M.cfg.weekStart);
+    const B = (k) => buckets[k] || (buckets[k] = { key: k, byP: {}, amt: 0, pk: 0, hz: 0, hzPk: 0, credit: 0, creditByP: {} });
+    for (const k of M.pkgs) {
+      if (k.d < from || k.d > to) continue;
+      const b = B(keyOf(k.d)); const bp = b.byP[k.p] || (b.byP[k.p] = { amt: 0, pk: 0, hz: 0, hzPk: 0, hzSku: {} });
+      b.amt += k.cost; b.pk++; bp.amt += k.cost; bp.pk++;
+      if (haz.has(k.base)) { b.hz += k.cost; b.hzPk++; bp.hz += k.cost; bp.hzPk++; const hs = bp.hzSku[k.base] || (bp.hzSku[k.base] = { amt: 0, pk: 0 }); hs.amt += k.cost; hs.pk++; }
+    }
+    for (const e of M.ledger) { if (e.d < from || e.d > to || !e.credit) continue; const b = B(keyOf(e.d)); b.credit += e.credit; b.creditByP[e.p] = (b.creditByP[e.p] || 0) + e.credit; }
+    return Object.values(buckets).sort((a, b) => (a.key < b.key ? 1 : -1));
+  };
+
+  // ---------- alerts for a day ----------
+  E.alerts = function (M, D, opts) {
+    const A = []; const add = (sev, area, title, detail, tab) => A.push({ sev, area, title, detail, tab });
+    const rc = E.reconcile(M, D);
+    if (rc.labsD.length && rc.wlStale) add('yellow', '交单核对', 'Wavelink 报告还没覆盖 ' + D, '已上传的 Wavelink 订单最新到 ' + (rc.wlMax || '—') + '，上传当天的 Wavelink 待发货报告后才能核对 ' + rc.labPk + ' 个面单', 'upload');
+    if (rc.labsD.length && !rc.wlStale) {
+      const dups = rc.labNoWL.filter((x) => x.type === 'dup');
+      if (dups.length) add('red', '交单核对', dups.length + ' 张面单疑似重复打单', '同一个 Wavelink 订单已有其他面单号，这些面单号不在 Wavelink 里：' + dups.slice(0, 5).map((x) => x.l.wo + ' ' + x.t).join('；'), 'recon');
+      if (rc.cancelled.length) add('red', '交单核对', rc.cancelled.length + ' 张面单对应的 Wavelink 订单已取消', '订单取消了但面单还有效，要作废并申请退款：' + rc.cancelled.slice(0, 5).map((x) => E.PNAME[x.l.p] + ' ' + x.l.wo + ' ' + x.t + ' $' + x.l.amt.toFixed(2)).join('；'), 'recon');
+      if (false && rc.voidShipped.length) add('red', '交单核对', rc.voidShipped.length + ' 个已作废的面单被仓库用来发货', '平台上面单已取消/失败，但 Wavelink 显示已用这个单号发货，可能被渠道补扣或者包裹没有物流：' + rc.voidShipped.slice(0, 5).map((x) => E.PNAME[x.l.p] + ' ' + x.w.wo + ' ' + x.t).join('；'), 'recon');
+      if (rc.over.length) add('red', '交单核对', rc.over.length + ' 个订单打单件数多于 Wavelink 包裹数', rc.over.slice(0, 5).map((o) => o.b + '（打单 ' + o.nLab + ' / WL ' + (o.nWl == null ? '无' : o.nWl) + '，' + o.plats.map((p) => E.PNAME[p]).join('+') + '）').join('；'), 'recon');
+      const pend = rc.pend.filter((x) => x.type === 'nowl');
+      if (pend.length) add('orange', '交单核对', pend.length + ' 个面单号在 Wavelink 里找不到，待运营确认', '可能是线下单、TZ 仓报告未上传或多打。按平台：' + Object.entries(pend.reduce((m, x) => (m[E.PNAME[x.l.p]] = (m[E.PNAME[x.l.p]] || 0) + 1, m), {})).map(([k, v]) => k + ' ' + v).join('，'), 'recon');
+      if (rc.wlNoLab.length) add('orange', '交单核对', rc.wlNoLab.length + ' 个 Wavelink 包裹找不到打单记录', '可能漏打，或该平台报告没上传/不完整。示例：' + rc.wlNoLab.slice(0, 4).map((x) => x.w.wo + '（' + x.w.ch + '）').join('；'), 'recon');
+      if (rc.noTrOrders.length) add('orange', '交单核对', rc.noTrOrders.length + ' 个 Wavelink 订单没有面单号', '下单日期为当天但没有派送单号，确认是否漏打', 'recon');
+      if (rc.notShipped.length && opts && opts.today && opts.today > D) add('yellow', '交单核对', rc.notShipped.length + ' 个已打单订单仓库还没发货', '面单已扣费但仓库状态不是“已发货”，如订单取消需要作废面单申请退款', 'recon');
+    }
+    { const from = E.addDays(D, -21); const vs = [];
+      for (const w of M.wl) { if (w.st !== '已发货' || !w.sd || E.day(w.sd) < from || E.day(w.sd) > E.addDays(D, 1)) continue; for (const t of w.trs) { if (!M.labByTr.has(t) && M.voidByTr.has(t)) vs.push({ t, w, l: M.voidByTr.get(t) }); } }
+      if (vs.length) { const g = {}; vs.forEach((x) => { const k = E.day(x.w.sd) + ' 发货 · ' + x.w.wh + ' · ' + E.PNAME[x.l.p] + '（' + x.l.st + '）'; g[k] = (g[k] || 0) + 1; });
+        add('red', '交单核对', '近 3 周有 ' + vs.length + ' 个包裹用已作废的面单发了货', '平台上这些面单已取消/失败，也没有重新打有效面单，仓库却用它们发货：包裹不会有物流，平台也可能补扣。' + Object.entries(g).map(([k, v]) => k + ' ' + v + ' 个').join('；') + '。示例：' + vs.slice(0, 3).map((x) => x.w.wo + ' ' + x.t).join('；'), 'online'); } }
+    for (const wh0 of [...new Set(M.whOut.map((r) => r.wh))]) {
+      const f = E.whFlow(M, E.addDays(D, -7), D, wh0);
+      const bad = Object.values(f.days).filter((o) => o.hasRec && o.short > 0).sort((a, b) => (a.d < b.d ? 1 : -1));
+      if (bad.length) add('orange', '交单核对', wh0 + ' 有已交运但仓库没发走的件', '按 Wavelink 提取时间（北京日期）对仓库发货记录：' + bad.map((o) => o.d + ' 差 ' + o.short + ' 件（' + Object.values(o.sku).filter((x) => x.jd > x.ck).slice(0, 4).map((x) => x.name + ' ' + E.r2(x.jd - x.ck)).join('，') + '）').join('；'), 'recon');
+    }
+    if (opts && opts.on) {
+      const on = opts.on;
+      for (const b of on.batches) add(b.lvl === 3 ? 'red' : b.lvl === 2 ? 'orange' : 'yellow', '上线率', '批量未上线：' + b.sd + ' ' + E.PNAME[b.p] + ' / ' + b.wh + ' 共 ' + b.off.length + ' 个', '中位 ' + E.r2(b.medDays) + ' 天 / 最长 ' + E.r2(b.maxDays) + ' 天，占该批 ' + Math.round(b.off.length / b.tot * 100) + '%。' + (b.nVoid ? '其中 ' + b.nVoid + ' 个用的是平台上已作废的面单！' : '') + 'SKU（件数）：' + Object.entries(b.skus).map(([k, v]) => k + '×' + v).join('，'), 'online');
+      const sev3 = on.off.filter((r) => r.lvl === 3 && !(r.note && r.note.solved));
+      const sev2 = on.off.filter((r) => r.lvl === 2 && !(r.note && r.note.solved));
+      if (sev3.length) add('red', '上线率', sev3.length + ' 个包裹超过 ' + M.cfg.on3 + ' 天未上线', sev3.slice(0, 6).map((r) => r.tr + ' ' + r.sku + ' ' + (r.wh || '?') + ' ' + E.PNAME[r.p]).join('；'), 'online');
+      if (sev2.length) add('orange', '上线率', sev2.length + ' 个包裹 ' + M.cfg.on2 + ' 天以上未上线', sev2.slice(0, 6).map((r) => r.tr + ' ' + r.sku).join('；'), 'online');
+      const pr = on.probs.filter((r) => !(r.note && r.note.solved));
+      if (pr.length) add('yellow', '上线率', pr.length + ' 个已上线包裹有异常（破损/退回/投递失败）', pr.slice(0, 5).map((r) => r.tr + ' ' + (r.t.sub || r.t.st)).join('；'), 'online');
+    }
+    if (opts && opts.miss718 && opts.miss718.length) add('yellow', '上线率', opts.miss718.length + ' 个面单号还没导入 718', '这些面单号不在任何一份 718 报告里，上线情况无法追踪', 'online');
+    for (const p of E.PLATS) {
+      const rows = E.ledgerRows(M, p); const r = rows.find((x) => x.d === D);
+      if (!r) { if (E.sysAmt(M, p, D) > 0) add('yellow', '余额核对', E.PNAME[p] + ' 当天有打单但还没录入余额', '系统打单金额 ' + E.sysAmt(M, p, D).toFixed(2), 'ledger'); continue; }
+      if (r.ok === false) add(r.explained ? 'yellow' : Math.abs(r.diff) >= 20 ? 'red' : 'orange', '余额核对', E.PNAME[p] + ' 期末对不上：差 ' + r.diff.toFixed(2) + (r.explained ? '（已找到原因）' : ''), r.why.join('；'), 'ledger');
+      else if (r.prepayGap != null && Math.abs(r.prepayGap) > M.cfg.ledTol) add('yellow', '余额核对', E.PNAME[p] + ' 手填预扣费与报告差 ' + r.prepayGap.toFixed(2), r.why.join('；'), 'ledger');
+    }
+    for (const a of E.anomalies(M, D)) add(a.sev, '面单价格', E.PNAME[a.p] + ' · ' + a.sku + ' 均价 ' + a.avg.toFixed(2) + '（历史中位 ' + a.med.toFixed(2) + '）', a.why.join('；'), 'price');
+    const rank = { red: 0, orange: 1, yellow: 2 };
+    return { list: A.sort((a, b) => rank[a.sev] - rank[b.sev]), rc };
+  };
+
+  root.Engine = E;
+  if (typeof module !== 'undefined') module.exports = E;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+(function(){
+'use strict';
+const E = window.Engine;
+const $ = (s, r) => (r || document).querySelector(s);
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money = (x) => x == null || isNaN(x) ? '—' : (x < 0 ? '-' : '') + '$' + Math.abs(x).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+const n2 = (x) => x == null || isNaN(x) ? '—' : Number(x).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+const pct = (x) => x == null || isNaN(x) ? '—' : (x * 100).toFixed(1) + '%';
+const PN = E.PNAME;
+const PCOL = { TS: 'var(--s1)', RK: 'var(--s2)', HC: 'var(--s3)', HYE: 'var(--s4)', WT: 'var(--s5)' };
+const PORDER = ['TS', 'RK', 'HC', 'HYE', 'WT'];
+const SEVL = { red: '严重', orange: '预警', yellow: '关注' };
+const LVL = { 3: ['red', '严重'], 2: ['orange', '预警'], 1: ['yellow', '关注'], 0: ['grey', '观察'] };
+const today = (() => { const t = new Date(); return t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0'); })();
+const nowStr = () => { const t = new Date(); return today + ' ' + String(t.getHours()).padStart(2, '0') + ':' + String(t.getMinutes()).padStart(2, '0') + ':00'; };
+
+// ---------------- store ----------------
+const S = { db: null, dl: null, mode: 'loading', cache: { lab: {}, wl: {}, trk: {}, led: {}, who: {}, note: {}, spec: {}, meta: {}, upl: {} } };
+const COLS = ['lab', 'wl', 'trk', 'led', 'who'];
+let READY = null; // 数据库读取完成前的保存要等它，否则会被读取结果覆盖
+async function initStore() {
+  try { S.db = await window.claude.use('db'); } catch (e) { S.db = null; S.dbErr = e; }
+  try { S.dl = await window.claude.use('downloads'); } catch (e) { S.dl = null; }
+  if (!S.db) { S.mode = 'mem'; setStatus('warn', (S.dbErr && S.dbErr.message) || '连不上多维表格'); return; }
+  window.OFFLINE.onChange(() => { const el = $('#stStatus'); el.innerHTML = '<span class="dot warn"></span><span>同事刚更新了数据</span> <button class="btn sm" id="stRe">刷新</button>'; $('#stRe').onclick = async () => { setStatus('', '正在刷新…'); await window.OFFLINE.reload(); await loadAll(); rebuild(); render(); toast('已刷新'); }; });
+  S.mode = 'db';
+  await loadAll();
+}
+async function loadAll() {
+  setStatus('', '正在读取数据…');
+  const cfgSnap = await S.db.doc('meta/cfg').get().catch(() => null);
+  if (cfgSnap && cfgSnap.exists) S.cache.meta.cfg = cfgSnap.data();
+  const covSnap = await S.db.doc('meta/cov').get().catch(() => null);
+  if (covSnap && covSnap.exists) S.cache.meta.cov = covSnap.data();
+  const days = (S.cache.meta.cfg && S.cache.meta.cfg.loadDays) || 150;
+  const from = E.addDays(today, -days);
+  let capped = false;
+  for (const c of COLS) {
+    const snap = await S.db.collection(c).where('d', '>=', from).limit(1000).get();
+    S.cache[c] = {}; snap.docs.forEach((d) => { S.cache[c][d.id] = d.data(); });
+    if (snap.size >= 1000) capped = true;
+  }
+  for (const c of ['note', 'spec']) {
+    const snap = await S.db.collection(c).limit(1000).get();
+    S.cache[c] = {}; snap.docs.forEach((d) => { S.cache[c][d.id] = d.data(); });
+  }
+  const up = await S.db.collection('upl').where('d', '>=', E.addDays(today, -30)).limit(100).get();
+  S.cache.upl = {}; up.docs.forEach((d) => { S.cache.upl[d.id] = d.data(); });
+  setStatus('ok', '多维表格已连接 · 大家看到同一份 · 显示最近 ' + days + ' 天');
+}
+async function put(col, id, data) {
+  if (S.mode === 'loading' && READY) await READY;
+  S.cache[col][id] = data;
+  if (S.mode !== 'db') return;
+  const size = JSON.stringify(data).length;
+  if (size > 250000) throw new Error(col + '/' + id + ' 太大（' + Math.round(size / 1024) + 'KB）');
+  try { await S.db.doc(col + '/' + id).set(data); }
+  catch (e) {
+    if (e && e.code === 'unavailable') { await new Promise((r) => setTimeout(r, 800 + Math.random() * 800)); await S.db.doc(col + '/' + id).set(data); }
+    else throw e;
+  }
+}
+async function del(col, id) { delete S.cache[col][id]; if (S.mode === 'db') await S.db.doc(col + '/' + id).delete(); }
+async function getDoc(col, id) {
+  if (S.cache[col][id]) return S.cache[col][id];
+  if (S.mode !== 'db') return null;
+  const s = await S.db.doc(col + '/' + id).get(); return s.exists ? s.data() : null;
+}
+function setStatus(k, t) { const el = $('#stStatus'); el.innerHTML = '<span class="dot ' + (k || '') + '"></span><span>' + esc(t) + '</span>'; }
+
+// ---------------- model ----------------
+let M = null, D = null, TAB = 'home', ON = null, AL = null;
+function rebuild() {
+  const st = { labels: [], wl: [], trk: [], ledger: [], whout: Object.values(S.cache.who || {}), notes: S.cache.note, spec: S.cache.spec, cfg: S.cache.meta.cfg || {}, cov: S.cache.meta.cov || {} };
+  for (const id in S.cache.lab) { const d = S.cache.lab[id]; d.rows.forEach((r) => st.labels.push(E.rowToLab(d.p, r))); }
+  for (const id in S.cache.wl) { const d = S.cache.wl[id]; d.rows.forEach((r) => st.wl.push(E.rowToWl(d.wh, r))); }
+  for (const id in S.cache.trk) { const d = S.cache.trk[id]; d.rows.forEach((r) => st.trk.push(E.rowToT(r))); }
+  for (const id in S.cache.led) st.ledger.push(S.cache.led[id]);
+  M = E.buildModel(st);
+  ON = E.online(M, { now: nowStr() });
+  if (!D || (!M.dates.includes(D) && M.dates.length && D > M.dates[M.dates.length - 1])) D = M.dates[M.dates.length - 1] || today;
+  computeAlerts();
+}
+function computeAlerts() {
+  const miss = E.missing718(M, E.addDays(D, -1), E.addDays(D, -7));
+  AL = E.alerts(M, D, { on: ON, today, miss718: miss });
+  AL.miss718 = miss;
+}
+
+// ---------------- tabs ----------------
+const TABS = [['home', '概览'], ['upload', '上传数据'], ['recon', '交单核对'], ['online', '上线率'], ['price', '面单均价'], ['ledger', '余额核对'], ['sum', '周 / 区间汇总'], ['set', '设置']];
+function renderTabs() {
+  const cnt = {};
+  if (AL) AL.list.forEach((a) => { if (a.sev !== 'yellow') cnt[a.tab] = (cnt[a.tab] || 0) + 1; });
+  $('#tabs').innerHTML = TABS.map(([k, t]) => '<button role="tab" data-tab="' + k + '" aria-selected="' + (TAB === k) + '">' + t + (cnt[k] ? '<span class="cnt">' + cnt[k] + '</span>' : '') + '</button>').join('');
+}
+function go(tab) { TAB = tab; try { localStorage.setItem('dz-tab', tab); } catch (e) {} render(); window.scrollTo(0, 0); }
+function render() {
+  renderTabs();
+  $('#dSel').value = D || '';
+  const V = { home: vHome, upload: vUpload, recon: vRecon, online: vOnline, price: vPrice, ledger: vLedger, sum: vSum, set: vSet }[TAB];
+  $('#main').innerHTML = V();
+  (AFTER[TAB] || (() => {}))();
+}
+const AFTER = {};
+AFTER.home = function () { const REPMODE = () => 'merge'; const i = $('#pkImp0'); if (i) i.onchange = async (e) => { const f = e.target.files[0]; if (!f) return; e.target.value = ''; try { setStatus('warn', '正在导入，别关插件…'); const n = await window.OFFLINE.importPack(await f.text(), REPMODE(), (a, b) => setStatus('warn', '正在写入多维表格 ' + a + ' / ' + b + '，别关插件…')); await loadAll(); rebuild(); render(); toast('已导入 ' + n + ' 份数据'); } catch (err) { setStatus('warn', '导入中断'); toast('导入失败：' + (err.message || err) + '（可以再导入一次，已写入的会覆盖）'); } }; };
+function toast(t) { const el = $('#toast'); el.textContent = t; el.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => { el.hidden = true; }, 2600); }
+
+// ---------------- helpers ----------------
+const chip = (cls, t) => '<span class="chip c-' + cls + '">' + esc(t) + '</span>';
+const pchip = (p) => '<span class="chip c-grey"><i style="width:8px;height:8px;border-radius:2px;display:inline-block;background:' + (PCOL[p] || 'var(--muted)') + '"></i>' + esc(PN[p] || p) + '</span>';
+const isHaz = (sku) => M.cfg.hazmat.includes(String(sku).replace(/\*\d+$/, ''));
+const skuCell = (sku) => esc(sku) + (isHaz(sku) ? '<span class="haz">危</span>' : '');
+function table(head, rows, opts) {
+  opts = opts || {};
+  if (!rows.length) return '<div class="empty">' + esc(opts.empty || '没有数据') + '</div>';
+  return '<div class="tw"' + (opts.h ? ' style="max-height:' + opts.h + 'px"' : '') + '><table><thead><tr>' + head.map((h) => { const n = h.startsWith('#'); return '<th' + (n ? ' class="n"' : '') + '>' + esc(n ? h.slice(1) : h) + '</th>'; }).join('') + '</tr></thead><tbody>' + rows.join('') + '</tbody></table></div>';
+}
+const td = (v, cls) => '<td' + (cls ? ' class="' + cls + '"' : '') + '>' + v + '</td>';
+const tdn = (v) => '<td class="n">' + v + '</td>';
+function rangeOf(kind) {
+  if (kind === 'day') return [D, D];
+  if (kind === 'week') { const s = E.weekStartOf(D, M.cfg.weekStart); return [s, E.addDays(s, 6)]; }
+  if (kind === 'lastweek') { const s = E.addDays(E.weekStartOf(D, M.cfg.weekStart), -7); return [s, E.addDays(s, 6)]; }
+  if (kind === '30') return [E.addDays(D, -29), D];
+  if (kind === '8w') return [E.addDays(E.weekStartOf(D, M.cfg.weekStart), -49), E.addDays(E.weekStartOf(D, M.cfg.weekStart), 6)];
+  return [D, D];
+}
+function csvOf(head, rows) { return '﻿' + [head, ...rows].map((r) => r.map((x) => { const s = x == null ? '' : String(x); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }).join(',')).join('\n'); }
+async function saveFile(name, data) {
+  if (!S.dl) { showCopy(name, typeof data === 'string' ? data : null); return; }
+  try { await S.dl.save({ filename: name, data }); toast('已导出 ' + name); }
+  catch (e) { if (e && e.code === 'declined') return; if (typeof data === 'string') showCopy(name, data); else toast('导出失败：' + (e && e.message || e)); }
+}
+function showCopy(name, text) {
+  if (text == null) { toast('这个视图不能下载文件'); return; }
+  const box = document.createElement('div'); box.className = 'panel'; box.innerHTML = '<header><h3>' + esc(name) + '</h3><button class="btn sm" data-close>关闭</button></header><p class="muted small">这个视图不能直接下载，选中下面的内容复制到 Excel 即可。</p><textarea class="in" style="width:100%;height:200px;font-family:var(--f-mono);font-size:12px">' + esc(text) + '</textarea>';
+  $('#main').prepend(box); box.querySelector('[data-close]').onclick = () => box.remove(); box.querySelector('textarea').select();
+}
+async function copyText(t) { try { await navigator.clipboard.writeText(t); toast('已复制'); } catch (e) { showCopy('复制内容', t); } }
+
+// ---------------- 概览 ----------------
+function vHome() {
+  if (!M.labels.length && !M.trk.length) return '<section class="panel"><header><h2>还没有数据</h2></header><div class="empty">到“上传数据”拖入打单平台报告、Wavelink 报告和 718 报告，这里就会出现当天的核对结果和预警。</div><div class="row"><button class="btn pri" data-go="upload">去上传</button><label class="btn">导入历史数据包<input type="file" id="pkImp0" accept=".json" hidden></label></div></section>';
+  const rc = AL.rc; const red = AL.list.filter((a) => a.sev === 'red').length, org = AL.list.filter((a) => a.sev === 'orange').length;
+  const lastFull = ON.days.find((d) => d.d <= E.addDays(D, -1)) || ON.days[0];
+  const led = E.PLATS.map((p) => E.ledgerRows(M, p).find((r) => r.d === D)).filter(Boolean);
+  const ledOk = led.filter((r) => r.ok).length;
+  const fresh = E.PLATS.map((p) => { const ds = M.labels.filter((l) => l.p === p).map((l) => l.d).sort(); return [p, ds[ds.length - 1]]; });
+  const wlLast = M.wl.map((w) => E.day(w.ot)).sort().pop(); const tLast = Object.values(S.cache.upl).flatMap((u) => u.items || []).filter((i) => (i.files || []).some((f) => f.kind === 'T718')).map((i) => i.at).sort().pop();
+  return '<section class="panel"><header><h2>' + esc(D) + ' 打单批次</h2><p>' + (red ? red + ' 条严重 · ' : '') + (org ? org + ' 条预警 · ' : '') + AL.list.length + ' 条提醒</p></header>' +
+    '<div class="kpis">' +
+    kpi('打单平台包裹', rc.labPk, 'Wavelink 对应 ' + rc.wlPk + ' 个 · 差 ' + (rc.diff > 0 ? '+' : '') + rc.diff) +
+    kpi('当天打单金额', money(rc.amt), Object.entries(rc.byP).map(([p, o]) => PN[p] + ' ' + n2(o.amt)).join(' · ')) +
+    kpi('上线率', lastFull ? pct(lastFull.on / lastFull.tot) : '—', lastFull ? lastFull.d + ' 发货 ' + lastFull.tot + ' 个，未上线 ' + lastFull.off : '没有 718 数据') +
+    kpi('余额核对', led.length ? ledOk + ' / ' + led.length : '—', led.length ? (led.length - ledOk ? (led.length - ledOk) + ' 个平台对不上' : '已录入的平台全部对平') : '当天还没录入') +
+    '</div>' +
+    '<div class="alerts">' + (AL.list.length ? AL.list.map(alertRow).join('') : '<div class="empty">当天没有需要处理的问题</div>') + '</div></section>' +
+    '<section class="panel"><header><h2>数据新鲜度</h2><p>每份报告最近覆盖到的打单日，晚于“打单日”说明当天数据已到齐</p></header>' +
+    table(['数据来源', '最近日期', '状态'], fresh.map(([p, d]) => '<tr>' + td(pchip(p)) + td(esc(d || '—'), 'mono') + td(!d ? chip('grey', '未上传') : d >= D ? chip('green', '已覆盖') : chip('yellow', '早于打单日')) + '</tr>').concat([
+      '<tr>' + td('Wavelink（' + (M.whs.join(' / ') || '—') + '）') + td(esc(wlLast || '—'), 'mono') + td(!wlLast ? chip('grey', '未上传') : wlLast >= D ? chip('green', '已覆盖') : chip('yellow', '早于打单日')) + '</tr>',
+      '<tr>' + td('718 上线率') + td(esc(tLast || (ON.days[0] ? ON.days[0].d : '—')), 'mono') + td(M.trk.length ? chip('green', M.trk.length + ' 个单号') : chip('grey', '未上传')) + '</tr>'])) + '</section>';
+}
+function kpi(k, v, s) { return '<div class="kpi"><span class="k">' + esc(k) + '</span><span class="v">' + esc(v) + '</span><span class="s">' + esc(s) + '</span></div>'; }
+function alertRow(a) { return '<div class="alert ' + a.sev + '">' + chip(a.sev, SEVL[a.sev]) + '<span class="t">' + esc(a.area) + ' · ' + esc(a.title) + '</span><button class="go" data-go="' + a.tab + '">查看 ›</button><span class="d">' + esc(a.detail) + '</span></div>'; }
+
+// ---------------- 上传 ----------------
+let PENDING = null;
+function vUpload() {
+  return '<section class="panel"><header><h2>上传报告</h2><p>可以一次拖入多份，系统按表头自动识别；同一天重复上传会覆盖更新，不会重复计算</p></header>' +
+    '<label class="drop" id="drop"><strong>拖入或点击选择文件</strong><span class="muted small">支持 .xlsx / .xls / .csv：HYE、Timestar（汇总+详情）、万通、如铠、海承（汇总+详情）、Wavelink（TXW / TZ）、718、各渠道每日打单金额统计、仓库发货记录（每天一个日期页签，读“SKU”和“出库”列；文件名带 TZ 记为 TZ 仓，否则记为 TXW）</span><input id="fileIn" type="file" multiple accept=".xlsx,.xls,.csv" hidden></label>' +
+    '<div id="pend">' + (PENDING ? pendHtml() : '') + '</div></section>' +
+    '<div class="grid2"><section class="panel"><header><h2>每天的上传顺序</h2></header><ol class="steps">' +
+    '<li>交单后：上传当天 <b>Wavelink 待发货报告</b>（TXW、TZ 各一份）和 5 个平台的打单报告 → 看“交单核对”</li>' +
+    '<li>仓库发完货后：上传 <b>仓库发货记录</b>（整本拖进来即可，按页签日期读“出库”列）→ 看“交单核对”里的“已交运 vs 仓库已发货”</li>' +
+    '<li>录入各平台充值 / 反弹 / 退款和交单后的余额 → 看“余额核对”</li>' +
+    '<li>在“上线率”底部复制还没导入 718 的面单号，导入 718</li>' +
+    '<li>仓库发货 24 小时后：上传 <b>718 最新状态报告</b> 和 Wavelink 已发货报告 → 看“上线率”预警</li></ol></section>' +
+    '<section class="panel"><header><h2>最近上传</h2></header>' + uplHistory() + '</section></div>';
+}
+function uplHistory() {
+  const items = Object.values(S.cache.upl).flatMap((u) => u.items || []).sort((a, b) => (a.at < b.at ? 1 : -1)).slice(0, 12);
+  return table(['时间', '文件'], items.map((i) => '<tr>' + td(esc(i.at), 'mono') + td(i.files.map((f) => esc(f.label) + ' ' + f.n + ' 行').join('；'), 'wrap') + '</tr>'), { empty: '还没有上传记录' });
+}
+function pendHtml() {
+  const P = PENDING.parsed;
+  const info = PENDING.files.map((f) => {
+    const k = f.det.kind; const inf = P.info.find((i) => i.name === f.name) || {};
+    let range = '';
+    if (['HYE', 'TS_SUM', 'WT', 'RK', 'HC_SUM'].includes(k)) { const ls = P.labels.filter((l) => l._f === f.name); const ds = ls.map((l) => l.d).filter(Boolean).sort(); range = ds.length ? ds[0] + ' → ' + ds[ds.length - 1] : ''; }
+    if (k === 'WL') { const ds = P.wl.map((w) => E.day(w.ot)).filter(Boolean).sort(); range = ds.length ? ds[0] + ' → ' + ds[ds.length - 1] + ' · ' + [...new Set(P.wl.map((w) => w.wh))].join('/') : ''; }
+    if (k === 'T718') { const ds = P.t718.map((t) => E.day(t.send)).filter(Boolean).sort(); range = ds.length ? ds[0] + ' → ' + ds[ds.length - 1] : ''; }
+    if (k === 'LEDGER') { const ds = P.ledger.map((l) => l.d).sort(); range = ds.length ? ds[0] + ' → ' + ds[ds.length - 1] : ''; }
+    if (k === 'WHOUT') { const ds = P.whout.map((r) => r.d).sort(); range = ds.length ? ds[0] + ' → ' + ds[ds.length - 1] + ' · ' + f.det.wh + '（只读最近 150 天）' : ''; }
+    return '<tr>' + td(esc(f.name), 'wrap') + td(k === 'UNKNOWN' ? chip('red', '无法识别') : chip('blue', f.det.label)) + tdn(inf.n || 0) + td(esc(range), 'mono') + '</tr>';
+  });
+  const byPD = {};
+  for (const l of P.labels) if (l.v) { const k = l.p + '|' + l.d; byPD[k] = (byPD[k] || 0) + l.amt; }
+  const recent = Object.entries(byPD).sort((a, b) => (a[0].split('|')[1] < b[0].split('|')[1] ? 1 : -1)).slice(0, 12);
+  return '<div style="display:grid;gap:10px;margin-top:6px">' + (P.warn.length ? P.warn.map((w) => '<div class="banner warn">' + esc(w) + '</div>').join('') : '') +
+    table(['文件', '识别为', '#行数', '日期范围'], info) +
+    (recent.length ? '<details><summary>按平台和日期的有效打单金额（最近 12 组）</summary>' + table(['平台', '日期', '#金额'], recent.map(([k, v]) => { const [p, d] = k.split('|'); return '<tr>' + td(pchip(p)) + td(d, 'mono') + tdn(n2(v)) + '</tr>'; })) + '</details>' : '') +
+    '<div class="row"><button class="btn pri" id="doSave">保存到多维表格</button><button class="btn" id="doCancel">取消</button><span class="muted small" id="saveMsg"></span></div><div class="prog" id="prog" hidden><i></i></div></div>';
+}
+AFTER.upload = function () {
+  const drop = $('#drop'), inp = $('#fileIn');
+  drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('over'); });
+  drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+  drop.addEventListener('drop', (e) => { e.preventDefault(); drop.classList.remove('over'); readFiles([...e.dataTransfer.files]); });
+  inp.addEventListener('change', () => readFiles([...inp.files]));
+  bindPend();
+};
+function bindPend() {
+  const s = $('#doSave'); if (s) s.onclick = savePending;
+  const c = $('#doCancel'); if (c) c.onclick = () => { PENDING = null; render(); };
+}
+async function readFiles(list) {
+  if (!list.length) return;
+  $('#pend').innerHTML = '<div class="muted">正在读取 ' + list.length + ' 个文件…</div>';
+  if (list.some((f) => !/\.csv$/i.test(f.name))) { try { await window.loadXLSX(); } catch (e) { $('#pend').innerHTML = '<div class="banner warn">' + esc(e.message) + '</div>'; return; } }
+  const files = [];
+  for (const f of list) {
+    try {
+      const buf = await f.arrayBuffer(); let sheets;
+      if (/\.csv$/i.test(f.name)) {
+        let text = new TextDecoder('utf-8').decode(buf);
+        if ((text.match(/\ufffd/g) || []).length > 5) { try { text = new TextDecoder('gbk').decode(buf); } catch (e) {} }
+        sheets = [{ name: f.name, rows: E.parseCSV(text) }];
+      } else {
+        const wb = XLSX.read(buf, { type: 'array', cellDates: false, dense: false });
+        sheets = wb.SheetNames.map((n) => ({ name: n, rows: XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: true, defval: '' }) }));
+      }
+      files.push({ name: f.name, sheets, det: E.detect(sheets, f.name) });
+    } catch (e) { files.push({ name: f.name, sheets: [], det: { kind: 'UNKNOWN', label: '读取失败：' + (e.message || e) } }); }
+  }
+  const parsed = E.parseBatch(files);
+  // tag labels with source file for preview
+  for (const f of files) { if (['HYE', 'TS_SUM', 'WT', 'RK', 'HC_SUM'].includes(f.det.kind)) { const map = { HYE: 'HYE', TS_SUM: 'TS', WT: 'WT', RK: 'RK', HC_SUM: 'HC' }; parsed.labels.filter((l) => l.p === map[f.det.kind]).forEach((l) => { l._f = f.name; }); } }
+  PENDING = { files, parsed };
+  $('#pend').innerHTML = pendHtml(); bindPend();
+}
+async function savePending() {
+  const P = PENDING.parsed; const btn = $('#doSave'); btn.disabled = true;
+  const msg = $('#saveMsg'), prog = $('#prog'); prog.hidden = false;
+  try {
+    const at = nowStr();
+    // fetch existing docs we are about to merge into
+    const ids = { lab: new Set(), wl: new Set(), trk: new Set() };
+    P.labels.forEach((l) => l.d && ids.lab.add(l.p + '_' + l.d));
+    P.wl.forEach((w) => { const d = E.day(w.ot) || E.day(w.sd); if (d) ids.wl.add((w.wh + '_' + d).replace(/[^A-Za-z0-9_\-.~:@+]/g, '-')); });
+    P.t718.forEach((t) => ids.trk.add(E.day(t.send) || 'nodate'));
+    const existing = { lab: {}, wl: {}, trk: {} };
+    msg.textContent = '核对已有数据…';
+    for (const c of ['lab', 'wl', 'trk']) for (const id of ids[c]) { const d = await getDoc(c, id); if (d) existing[c][id] = d; }
+    const { docs, cov } = E.buildDocs(P, existing, at);
+    // ledger import must not overwrite rows entered in this tool
+    const todo = docs.filter((d) => !(d.col === 'led' && S.cache.led[d.id] && S.cache.led[d.id].src !== 'import'));
+    let i = 0;
+    for (const d of todo) { await put(d.col, d.id, d.data); i++; prog.firstChild.style.width = Math.round(i / todo.length * 100) + '%'; msg.textContent = '已写入 ' + i + ' / ' + todo.length; }
+    // coverage
+    const cv = Object.assign({}, S.cache.meta.cov || {});
+    for (const p in cov) { const arr = (cv[p] || []).concat([cov[p]]).sort((a, b) => (a[0] < b[0] ? -1 : 1)); const out = []; for (const r of arr) { const last = out[out.length - 1]; if (last && r[0] <= E.addDays(last[1], 1)) { if (r[1] > last[1]) last[1] = r[1]; } else out.push([r[0], r[1]]); } cv[p] = out; }
+    await put('meta', 'cov', cv); S.cache.meta.cov = cv;
+    // 数据库读回来的文档是只读的，上传记录要生成新对象再写，不能直接改
+    const ud = today; const oldU = S.cache.upl[ud];
+    const u = { d: ud, items: ((oldU && oldU.items) || []).concat([{ at, files: P.info.map((x) => ({ name: x.name, kind: x.kind, label: x.label, n: x.n })) }]).slice(-40) };
+    try { await put('upl', ud, u); } catch (e) { console.warn('上传记录写入失败', e); }
+    PENDING = null; rebuild();
+    const ld = P.labels.map((l) => l.d).filter(Boolean).sort().pop(); if (ld) D = ld; computeAlerts();
+    toast('已保存 ' + todo.length + ' 份数据'); render();
+  } catch (e) { msg.textContent = '保存失败：' + (e.code ? e.code + ' ' : '') + (e.message || e); btn.disabled = false; }
+}
+
+// ---------------- 交单核对 ----------------
+let WHD = null, WHSKU = null, WHW = null;
+function whFlowHtml() {
+  const whList = [...new Set(M.whOut.map((r) => r.wh).concat(M.whs))].sort();
+  if (!WHW || !whList.includes(WHW)) WHW = M.whOut.length ? (M.whOut.some((r) => r.wh === 'TXW') ? 'TXW' : M.whOut[0].wh) : (whList[0] || 'TXW');
+  const all = E.whFlow(M, E.addDays(today, -60), E.addDays(today, 1), WHW);
+  const dayKeys = Object.keys(all.days).filter((d) => all.days[d].jd || all.days[d].ck || all.days[d].hasRec).sort();
+  const head = '<section class="panel"><header><h2>已交运 vs 仓库已发货</h2><p>已交运 = Wavelink“提取时间”的日期（北京时间，不换算），按 SKU 件数，已取消订单不算；已发货 = 仓库发货记录里同一日期页签的“出库”。差值 = 已交运 − 已发货，正数就是交运了但仓库没发走的件</p>';
+  if (!dayKeys.length) return head + '</header><div class="empty">还没有数据</div></section>';
+  if (!WHD || !all.days[WHD]) WHD = all.days[D] ? D : dayKeys[dayKeys.length - 1];
+  const day = all.days[WHD] || { sku: {}, jd: 0, ck: 0, hasRec: false, short: 0, nOrd: 0 };
+  const note = (o) => {
+    const df = E.r2(o.jd - o.ck);
+    if (!day.hasRec) return '<span class="muted">没有仓库记录</span>';
+    if (df > 0) return chip('red', '有 ' + df + ' 件交运了没发走') + (o.voidLab ? ' ' + chip('red', o.voidLab + ' 件面单已作废') : '');
+    if (o.jd === 0) return chip('grey', '仓库出库不在 WL 订单里（FBA / 批量 / 补发？）');
+    if (df < 0) return chip('yellow', '仓库多出库 ' + (-df));
+    return chip('green', '已全部发走');
+  };
+  const ent = Object.values(day.sku).filter((o) => o.jd || o.ck).sort((a, b) => ((b.jd - b.ck > 0) - (a.jd - a.ck > 0)) || (b.jd - b.ck) - (a.jd - a.ck) || (b.jd + b.ck) - (a.jd + a.ck));
+  const rows = ent.map((o) => {
+    const df = E.r2(o.jd - o.ck);
+    return '<tr>' + td(skuCell(o.name)) + tdn(o.jd) + tdn(day.hasRec ? o.ck : '—') + tdn(!day.hasRec ? '—' : df === 0 ? '0' : '<span class="' + (df > 0 ? 'neg' : 'muted') + '">' + (df > 0 ? '+' : '') + df + '</span>') + tdn(o.noLab ? '<span class="neg">' + o.noLab + '</span>' : '0') + td(note(o), 'wrap') + '</tr>';
+  });
+  const jdT = ent.reduce((a, o) => a + o.jd, 0);
+  const ckOther = E.r2(ent.filter((o) => o.jd === 0).reduce((a, o) => a + o.ck, 0));
+  const names = new Map();
+  dayKeys.forEach((d) => Object.values(all.days[d].sku).forEach((o) => { if (!names.has(E.normSku(o.name))) names.set(E.normSku(o.name), o.name); }));
+  const skuNames = [...names.values()].sort();
+  if (!WHSKU || !skuNames.includes(WHSKU)) WHSKU = skuNames.includes('IPA-99-04') ? 'IPA-99-04' : skuNames[0];
+  let cum = 0;
+  const tr = dayKeys.slice(-21).map((d) => { const dd = all.days[d]; const o = dd.sku[E.normSku(WHSKU)] || { jd: 0, ck: 0 }; const df = E.r2(o.jd - o.ck); if (dd.hasRec) cum = E.r2(cum + df); return [d, dd, o, df, cum]; });
+  const trRows = tr.slice().reverse().map(([d, dd, o, df, c]) => '<tr>' + td(esc(d), 'mono') + tdn(o.jd) + tdn(dd.hasRec ? o.ck : '—') + tdn(!dd.hasRec ? '—' : df === 0 ? '0' : '<span class="' + (df > 0 ? 'neg' : 'muted') + '">' + (df > 0 ? '+' : '') + df + '</span>') + tdn(c) + td(dd.hasRec ? chip('green', '已上传') : chip('grey', '未上传')) + '</tr>');
+  const shortOrd = ent.filter((o) => day.hasRec && o.jd > o.ck).flatMap((o) => o.ords.map((w) => [o, w]));
+  return head + '<div class="row"><span class="small muted">日期（北京）</span><input class="in" type="date" id="whD" value="' + esc(WHD) + '"><select class="in" id="whW" aria-label="仓库">' + whList.map((w) => '<option' + (w === WHW ? ' selected' : '') + '>' + esc(w) + '</option>').join('') + '</select><button class="btn sm" id="expSku">导出 CSV</button></div></header>' +
+    (day.hasRec ? '' : '<div class="banner warn">' + esc(WHW) + ' 仓 ' + esc(WHD) + ' 还没有仓库发货记录，只能看到已交运的数量。到“上传数据”拖入仓库发货记录（页签名要是这一天，比如 ' + esc(+WHD.slice(5, 7) + '.' + +WHD.slice(8)) + '）。</div>') +
+    '<div class="kpis">' + kpi('已交运（WL）', jdT, day.nOrd + ' 个订单') + kpi('已发货（仓库记录）', day.hasRec ? day.ck : '—', day.hasRec ? (ckOther ? '其中 ' + ckOther + ' 件不在 WL 订单里' : '全部能对上 WL 的 SKU') : '未上传') + kpi('交运了没发走', day.hasRec ? day.short : '—', day.hasRec ? (day.short ? '按 SKU 汇总，见下表红色行' : '已交运的都发走了') : '') + '</div>' +
+    table(['SKU', '#已交运', '#已发货', '#差值', '#其中无有效面单', '判断'], rows, { empty: '这一天没有交运也没有出库' }) +
+    (shortOrd.length ? '<details><summary>差值为正的 SKU 对应的交运订单 · ' + shortOrd.length + '（仓库记录只有 SKU 合计，精确不到单，给仓库逐单核查用）</summary>' + table(['SKU', 'WO', '派送单号', '提取时间', 'WL 状态', 'WL 发货时间'], shortOrd.slice(0, 300).map(([o, w]) => '<tr>' + td(skuCell(o.name)) + td(esc(w.wo), 'mono') + td(esc(w.trs.join(',')), 'mono small') + td(esc(w.pick), 'mono small') + td(esc(w.st)) + td(esc(w.sd || '—'), 'mono small') + '</tr>')) + '</details>' : '') +
+    '<div class="row" style="margin-top:6px"><h3>单个 SKU 每日走势</h3><select class="in" id="whSku" aria-label="SKU">' + skuNames.map((k) => '<option' + (k === WHSKU ? ' selected' : '') + '>' + esc(k) + '</option>').join('') + '</select><span class="muted small">累计差只累加有仓库记录的日期；一直为正说明有件压在仓库</span></div>' +
+    table(['日期（北京）', '#已交运', '#已发货', '#当天差', '#累计差', '仓库记录'], trRows) + '</section>';
+}
+const SPEC_REASONS = ['线下临时单（与销售无关）', 'TZ 仓发货（报告未上传）', '补发单', '多打 · 需作废退款', '重复打单 · 需作废退款', '其他'];
+function vRecon() {
+  const rc = AL.rc;
+  if (!rc.labsD.length) return '<section class="panel"><header><h2>' + esc(D) + ' 交单核对</h2></header><div class="empty">这一天没有打单平台记录。换一个打单日，或先上传当天的平台报告。</div></section>';
+  const whs = Object.keys(rc.whCov);
+  const pRows = PORDER.filter((p) => rc.byP[p]).map((p) => { const o = rc.byP[p]; return '<tr>' + td(pchip(p)) + tdn(o.labels) + tdn(o.pk) + tdn(n2(o.amt)) + tdn(o.matched) + tdn(o.nowl ? '<span class="neg">' + o.nowl + '</span>' : 0) + '</tr>'; });
+  pRows.push('<tr class="tot">' + td('合计') + tdn(rc.labsD.length) + tdn(rc.labPk) + tdn(n2(rc.amt)) + tdn(rc.matched.length) + tdn(rc.labNoWL.length) + '</tr>');
+  const A = rc.labNoWL.map((x) => {
+    const sp = x.spec; const pk = E.labelPackages(M, x.l)[0];
+    return '<tr>' + td(x.type === 'dup' ? chip('red', '疑似重复打单') : chip('orange', 'WL 无此单')) + td(pchip(x.l.p)) + td(esc(x.l.wo), 'mono') + td(esc(x.t), 'mono') + td(skuCell(pk ? pk.sku : x.l.sku)) + tdn(n2(x.l.amt / Math.max(1, x.l.n))) + td(esc(x.l.ch), 'small') +
+      td(x.w ? '<span class="small mono">' + esc(x.w.trs.join(',')) + '</span>' : '<span class="muted">—</span>') +
+      td('<select class="in" data-spec-r="' + esc(x.t) + '">' + ['<option value="">待确认…</option>'].concat(SPEC_REASONS.map((r) => '<option' + (sp && sp.reason === r ? ' selected' : '') + '>' + r + '</option>')).join('') + '</select>') +
+      td('<input class="man wide" data-spec-m="' + esc(x.t) + '" value="' + esc(sp ? sp.remark : '') + '" placeholder="运营说明">') +
+      td('<button class="btn sm" data-spec-save="' + esc(x.t) + '">保存</button>' + (sp && sp.ok ? ' ' + chip('green', '已确认') : '')) + '</tr>';
+  });
+  const B = rc.wlNoLab.map((x) => '<tr>' + td(esc(x.w.wo), 'mono') + td(esc(x.t), 'mono') + td(skuCell(x.w.skus)) + td(esc(x.w.ch)) + td(esc(x.w.wh)) + td(esc(x.w.st)) + td(x.voided ? chip('yellow', PN[x.voided.p] + ' 有作废/失败记录：' + x.voided.st) : '<span class="muted">没有找到任何平台记录</span>', 'wrap') + '</tr>');
+  const Vs = rc.voidShipped.map((x) => { const tk = M.trkByTr.get(x.t); return '<tr>' + td(esc(x.w.wo), 'mono') + td(esc(x.t), 'mono') + td(skuCell(x.w.skus)) + td(esc(x.w.ch), 'small') + td(esc(x.w.wh)) + td(esc(x.w.ot), 'mono small') + td(esc(x.w.sd ? E.bjToDay(x.w.sd, M.cfg.tz) : '—'), 'mono') + td(pchip(x.l.p)) + td(chip('red', x.l.st)) + tdn(n2(x.l.amt)) + td(tk ? esc(tk.sub || tk.st) + (tk.stay != null ? ' · ' + n2(tk.stay) + ' 天' : '') : '<span class="muted">未导入</span>') + '</tr>'; });
+  const C = rc.over.map((o) => '<tr>' + td(esc(o.b), 'mono') + td(o.plats.map(pchip).join(' ')) + tdn(o.nLab) + tdn(o.nWl == null ? '—' : o.nWl) + td(o.labs.map((l) => esc(l.wo) + ' ' + esc(l.trs.join(',')) + ' $' + n2(l.amt)).join('<br>'), 'wrap mono small') + '</tr>');
+  const Dn = rc.notShipped.map((w) => '<tr>' + td(esc(w.wo), 'mono') + td(esc(w.trs.join(',')), 'mono') + td(skuCell(w.skus)) + td(esc(w.st)) + td(esc(w.wh)) + '</tr>');
+  const whSec = whFlowHtml();
+  const specs = Object.entries(S.cache.spec).filter(([, s]) => s.ok).sort((a, b) => (a[1].at < b[1].at ? 1 : -1)).slice(0, 50);
+  return '<section class="panel"><header><h2>' + esc(D) + ' 交单核对</h2><p>打单平台当天的面单号 vs Wavelink 订单的派送单号，按面单号逐个匹配，WO 号兜底</p></header>' +
+    '<div class="kpis">' + kpi('打单平台包裹', rc.labPk, rc.labsD.length + ' 张面单') + kpi('Wavelink 包裹', rc.wlPk, '仓库：' + (whs.join(' / ') || '—')) + kpi('已匹配', rc.matched.length, pct(rc.matched.length / Math.max(1, rc.labPk))) + kpi('差值（平台 − WL）', (rc.diff > 0 ? '+' : '') + rc.diff, rc.diff === 0 ? '数量一致' : rc.diff > 0 ? '平台多出的面单要确认' : 'WL 有包裹没找到有效面单：' + [rc.voidShipped.length ? rc.voidShipped.length + ' 个用作废面单发货' : '', rc.wlNoLab.length ? rc.wlNoLab.length + ' 个没有打单记录' : ''].filter(Boolean).join('，')) + '</div>' +
+    (rc.wlStale ? '<div class="banner warn">已上传的 Wavelink 订单最新只到 ' + esc(rc.wlMax || '—') + '，这一天的面单还没有 Wavelink 数据可以对，下面的“找不到”是因为报告没上传，不是多打。</div>' : '') +
+    (!rc.wlStale && !whs.includes('TZ') && rc.labNoWL.length ? '<div class="banner info">这个批次没有 TZ 仓的 Wavelink 数据。如果“WL 无此单”的面单是 TZ 发的，上传 TZ 的 Wavelink 报告后会自动匹配。</div>' : '') +
+    table(['平台', '#面单', '#包裹', '#金额', '#匹配 WL', '#WL 无此单'], pRows) + '</section>' +
+    '<section class="panel"><header><h2>面单在 Wavelink 找不到 · ' + rc.labNoWL.length + '</h2><p>需要运营确认是否属实；确认后记入特殊情况，不再预警</p></header>' + table(['类型', '平台', '平台订单号', '面单号', 'SKU', '#单包裹金额', '渠道', 'WL 已有面单号', '原因', '说明', ''], A, { empty: '全部面单都在 Wavelink 里' }) + '</section>' +
+    '<section class="panel"><header><h2>Wavelink 包裹没有打单记录 · ' + rc.wlNoLab.length + '</h2><p>可能漏打，或者对应平台的报告没上传完整</p></header>' + table(['WO 号', '派送单号', 'SKU', 'WL 物流渠道', '仓库', '状态', '说明'], B, { empty: '没有' }) + '</section>' +
+    '<section class="panel"><header><h2>WL 已发货，但面单在平台已作废 · ' + rc.voidShipped.length + '</h2><p>仓库用这个单号发了货，平台上这张面单已取消/失败，同一订单也没有其他有效面单：包裹多半不会上线，渠道可能补扣。要找渠道确认能否恢复面单，或让仓库拦截、换有效面单</p></header>' + table(['WO 号', '派送单号', 'SKU', 'WL 物流渠道', '仓库', 'WL 下单', 'WL 发货（美中）', '平台', '平台状态', '#原面单金额', '718'], Vs, { empty: '没有' }) + '</section>' +
+    (rc.over.length ? '<section class="panel"><header><h2>同一订单打单件数多于 Wavelink · ' + rc.over.length + '</h2></header>' + table(['WO 号', '平台', '#打单包裹', '#WL 包裹', '面单明细'], C) + '</section>' : '') +
+    (rc.noTrOrders.length ? '<section class="panel"><header><h2>Wavelink 订单没有派送单号 · ' + rc.noTrOrders.length + '</h2></header>' + table(['WO 号', 'SKU', '渠道', '状态'], rc.noTrOrders.map((w) => '<tr>' + td(esc(w.wo), 'mono') + td(skuCell(w.skus)) + td(esc(w.ch)) + td(esc(w.st)) + '</tr>')) + '</section>' : '') +
+    '<section class="panel"><header><h2>已打单但仓库未发货 · ' + rc.notShipped.length + '</h2><p>按最新上传的 Wavelink 状态；订单取消的要作废面单申请退款</p></header>' + table(['WO 号', '派送单号', 'SKU', 'WL 状态', '仓库'], Dn, { empty: '本批次已全部发货（或还没上传发货后的 Wavelink 报告）' }) + '</section>' +
+    whSec +
+    '<section class="panel"><header><h2>特殊情况记录</h2><p>最近 50 条已确认</p></header>' + table(['确认时间', '打单日', '平台', '面单号', 'WO', '原因', '说明'], specs.map(([t, s]) => '<tr>' + td(esc(s.at), 'mono small') + td(esc(s.d), 'mono') + td(pchip(s.p)) + td(esc(t), 'mono') + td(esc(s.wo), 'mono') + td(esc(s.reason)) + td(esc(s.remark), 'wrap') + '</tr>'), { empty: '还没有' }) + '</section>';
+}
+AFTER.recon = function () {
+  document.querySelectorAll('[data-spec-save]').forEach((b) => b.onclick = async () => {
+    const t = b.dataset.specSave; const r = document.querySelector('[data-spec-r="' + CSS.escape(t) + '"]').value; const m = document.querySelector('[data-spec-m="' + CSS.escape(t) + '"]').value.trim();
+    const x = AL.rc.labNoWL.find((y) => y.t === t);
+    if (!r) { await del('spec', t).catch(() => {}); rebuild(); render(); return; }
+    b.disabled = true;
+    try { await put('spec', t, { ok: true, reason: r, remark: m, d: x.l.d, p: x.l.p, wo: x.l.wo, amt: x.l.amt, at: nowStr() }); rebuild(); render(); toast('已记录特殊情况'); }
+    catch (e) { b.disabled = false; toast('保存失败：' + (e.message || e)); }
+  });
+  const wd = $('#whD'); if (wd) wd.onchange = () => { WHD = wd.value; render(); };
+  const ww = $('#whW'); if (ww) ww.onchange = () => { WHW = ww.value; render(); };
+  const ws = $('#whSku'); if (ws) ws.onchange = () => { WHSKU = ws.value; render(); };
+  const ex = $('#expSku'); if (ex) ex.onclick = () => { const f = E.whFlow(M, WHD, WHD, WHW); const dd = f.days[WHD] || { sku: {}, hasRec: false }; saveFile('已交运vs已发货_' + WHW + '_' + WHD + '.csv', csvOf(['日期（北京）', '仓库', 'SKU', '已交运（WL提取）', '已发货（仓库记录）', '差值', '其中无有效面单'], Object.values(dd.sku).map((v) => [WHD, WHW, v.name, v.jd, dd.hasRec ? v.ck : '', dd.hasRec ? E.r2(v.jd - v.ck) : '', v.noLab]))); };
+};
+
+// ---------------- 上线率 ----------------
+let ONF = { days: 14, p: '', wh: '', hideSolved: true };
+function vOnline() {
+  if (!M.trk.length) return '<section class="panel"><header><h2>上线率</h2></header><div class="empty">还没有 718 报告。上传 718 导出的 CSV 后，这里会按发货日期统计上线率，并列出未上线的包裹。</div></section>';
+  const from = E.addDays(D, -ONF.days);
+  const days = ON.days.filter((d) => d.d >= from && d.d <= E.addDays(D, 1));
+  const dRows = days.map((d) => '<tr>' + td(esc(d.d), 'mono') + tdn(d.tot) + tdn(d.on) + tdn(d.off ? '<span class="neg">' + d.off + '</span>' : 0) + tdn(rateChip(d.on / d.tot)) + tdn(d.prob || 0) +
+    td(PORDER.concat(['?']).filter((p) => d.byP[p]).map((p) => '<span class="small">' + esc(PN[p]) + ' <span class="mono">' + (d.byP[p].tot - d.byP[p].off) + '/' + d.byP[p].tot + '</span></span>').join(' · '), 'small') +
+    td(Object.entries(d.byWh).map(([w, o]) => '<span class="small">' + esc(w) + ' <span class="mono">' + (o.tot - o.off) + '/' + o.tot + '</span></span>').join(' · '), 'small') + '</tr>');
+  const off = ON.off.filter((r) => r.sd >= from && (!ONF.p || r.p === ONF.p) && (!ONF.wh || r.wh === ONF.wh) && !(ONF.hideSolved && r.note && r.note.solved));
+  const bt = ON.batches.filter((b) => b.sd >= from);
+  const probs = ON.probs.filter((r) => r.sd >= from && !(ONF.hideSolved && r.note && r.note.solved));
+  const pOpts = ['<option value="">全部平台</option>'].concat(PORDER.concat(['?']).map((p) => '<option value="' + p + '"' + (ONF.p === p ? ' selected' : '') + '>' + PN[p] + '</option>')).join('');
+  const wOpts = ['<option value="">全部仓库</option>'].concat(M.whs.map((w) => '<option' + (ONF.wh === w ? ' selected' : '') + '>' + esc(w) + '</option>')).join('');
+  const miss = AL.miss718;
+  return '<section class="panel"><header><h2>按发货日期的上线率</h2><p>发货日期取 Wavelink 发货时间，没有就用 718 的发货时间；“已上线”按你原来的口径（签收、派送、到达待取、运输、退回、可能异常、投递失败、已上网）</p>' +
+    '<div class="row"><span class="small muted">看最近</span><div class="seg">' + [7, 14, 30].map((n) => '<button data-ond="' + n + '" aria-pressed="' + (ONF.days === n) + '">' + n + ' 天</button>').join('') + '</div></div></header>' +
+    table(['发货日期', '#总数', '#已上线', '#未上线', '#上线率', '#问题件', '按平台（已上线/总数）', '按仓库'], dRows, { empty: '这个时间段没有 718 数据' }) + '</section>' +
+    (bt.length ? '<section class="panel"><header><h2>批量未上线 · ' + bt.length + ' 组</h2><p>同一天同一平台同一仓库 ≥ ' + M.cfg.batchN + ' 个未上线，或占比 ≥ ' + Math.round(M.cfg.batchPct * 100) + '%：最危险，优先找渠道方确认是否揽收</p></header><div class="alerts">' +
+      bt.map((b) => '<div class="alert ' + LVL[b.lvl][0] + '">' + chip(LVL[b.lvl][0], LVL[b.lvl][1]) + '<span class="t">' + esc(b.sd) + ' · ' + esc(PN[b.p]) + ' · ' + esc(b.wh) + ' · ' + b.off.length + ' / ' + b.tot + ' 未上线</span><span></span><span class="d">中位 ' + n2(b.medDays) + ' 天，最长 ' + n2(b.maxDays) + ' 天 · ' + (b.nVoid ? '<b class="neg">其中 ' + b.nVoid + ' 个用的是已作废面单</b> · ' : '') + Object.entries(b.skus).map(([k, v]) => esc(k) + ' × ' + v).join('，') + '</span></div>').join('') + '</div></section>' : '') +
+    '<section class="panel"><header><h2>未上线包裹 · ' + off.length + '</h2><p>阶段：≥' + M.cfg.on1 + ' 天关注，≥' + M.cfg.on2 + ' 天预警，≥' + M.cfg.on3 + ' 天严重（天数取 718 的“停留天数”）</p>' +
+    '<div class="row"><select class="in" id="onP">' + pOpts + '</select><select class="in" id="onW">' + wOpts + '</select><label class="small"><input type="checkbox" id="onHide"' + (ONF.hideSolved ? ' checked' : '') + '> 隐藏已解决</label><button class="btn sm" id="onCopy">复制摘要给运营</button><button class="btn sm" id="onExp">导出 CSV</button></div></header>' +
+    table(['阶段', '#天数', '面单号', '发货日期', '平台', '渠道', '仓库', 'SKU', 'WO', '718 状态', '下一步动作', '已解决', '备注', ''], off.slice(0, 400).map(offRow), { empty: '没有未上线的包裹' }) + (off.length > 400 ? '<p class="muted small">只显示前 400 个，导出 CSV 查看全部</p>' : '') + '</section>' +
+    '<section class="panel"><header><h2>已上线但有异常 · ' + probs.length + '</h2><p>破损、退回、投递失败、可能异常；718 备注以“无需关注”开头的已自动排除</p></header>' +
+    table(['718 状态', '面单号', '发货日期', '平台', '仓库', 'SKU', '718 备注', '最近轨迹', '下一步动作', '已解决', '备注', ''], probs.slice(0, 300).map(probRow), { empty: '没有' }) + '</section>' +
+    '<section class="panel"><header><h2>还没导入 718 的面单号 · ' + miss.length + '</h2><p>' + esc(E.addDays(D, -7)) + ' 到 ' + esc(E.addDays(D, -1)) + ' 打出的面单里，718 报告中找不到的单号</p>' + (miss.length ? '<button class="btn sm" id="copyMiss">复制单号（每行一个）</button>' : '') + '</header>' +
+    table(['打单日', '平台', '面单号', 'WO'], miss.slice(0, 300).map((x) => '<tr>' + td(esc(x.l.d), 'mono') + td(pchip(x.l.p)) + td(esc(x.t), 'mono') + td(esc(x.l.wo), 'mono') + '</tr>'), { empty: '都已导入 718' }) + '</section>';
+}
+function rateChip(r) { return chip(r >= 0.98 ? 'green' : r >= 0.9 ? 'yellow' : r >= 0.7 ? 'orange' : 'red', pct(r)); }
+const NEXT = ['', '联系渠道查件', '等待揽收扫描', '已补发', '已取消/退款', '联系客户', '其他'];
+function noteCells(r) {
+  const n = r.note || {}; const t = esc(r.tr);
+  return td('<select class="in" data-n-a="' + t + '">' + NEXT.map((x) => '<option' + (n.action === x ? ' selected' : '') + '>' + x + '</option>').join('') + '</select>') +
+    td('<input type="checkbox" data-n-s="' + t + '"' + (n.solved ? ' checked' : '') + ' aria-label="已解决">') +
+    td('<input class="man wide" data-n-m="' + t + '" value="' + esc(n.remark || '') + '">') + td('<button class="btn sm" data-n-save="' + t + '">保存</button>');
+}
+function offRow(r) {
+  const l = LVL[r.lvl];
+  return '<tr>' + td(chip(l[0], l[1])) + tdn(r.days == null ? '—' : n2(r.days)) + td(esc(r.tr), 'mono') + td(esc(r.sd), 'mono') + td(pchip(r.p)) + td(esc(r.ch || r.wlCh), 'small') + td(esc(r.wh || '—')) + td(skuCell(r.sku)) + td(esc(r.wo), 'mono small') + td(esc(r.t.sub || r.t.st) + (r.void ? ' ' + chip('red', '面单已作废') : '')) + noteCells(r) + '</tr>';
+}
+function probRow(r) { return '<tr>' + td(chip('yellow', r.t.sub || r.t.st)) + td(esc(r.tr), 'mono') + td(esc(r.sd), 'mono') + td(pchip(r.p)) + td(esc(r.wh || '—')) + td(skuCell(r.sku)) + td(esc(r.t.note), 'wrap small') + td(esc(r.t.last), 'mono small') + noteCells(r) + '</tr>'; }
+AFTER.online = function () {
+  document.querySelectorAll('[data-ond]').forEach((b) => b.onclick = () => { ONF.days = +b.dataset.ond; render(); });
+  const p = $('#onP'); if (p) p.onchange = () => { ONF.p = p.value; render(); };
+  const w = $('#onW'); if (w) w.onchange = () => { ONF.wh = w.value; render(); };
+  const h = $('#onHide'); if (h) h.onchange = () => { ONF.hideSolved = h.checked; render(); };
+  document.querySelectorAll('[data-n-save]').forEach((b) => b.onclick = async () => {
+    const t = b.dataset.nSave; const q = (a) => document.querySelector('[' + a + '="' + CSS.escape(t) + '"]');
+    const data = { action: q('data-n-a').value, solved: q('data-n-s').checked, remark: q('data-n-m').value.trim(), at: nowStr() };
+    b.disabled = true;
+    try { await put('note', t, data); rebuild(); render(); toast('已保存'); } catch (e) { b.disabled = false; toast('保存失败：' + (e.message || e)); }
+  });
+  const from = E.addDays(D, -ONF.days);
+  const offAll = () => ON.off.filter((r) => r.sd >= from && (!ONF.p || r.p === ONF.p) && (!ONF.wh || r.wh === ONF.wh) && !(ONF.hideSolved && r.note && r.note.solved));
+  const cp = $('#onCopy'); if (cp) cp.onclick = () => {
+    const off = offAll(); const g = {};
+    off.forEach((r) => { const k = (r.wh || '未知仓') + ' · ' + PN[r.p]; (g[k] = g[k] || []).push(r); });
+    const lines = [D + ' 未上线包裹共 ' + off.length + ' 个'];
+    for (const k in g) { lines.push('', '【' + k + '】' + g[k].length + ' 个'); const bySku = {}; g[k].forEach((r) => { bySku[r.sku] = (bySku[r.sku] || 0) + 1; }); lines.push('SKU：' + Object.entries(bySku).map(([s, n]) => s + '×' + n).join('，')); g[k].forEach((r) => lines.push(r.tr + '  ' + r.sku + '  发货 ' + r.sd + '  ' + (r.days == null ? '' : n2(r.days) + '天'))); }
+    copyText(lines.join('\n'));
+  };
+  const ex = $('#onExp'); if (ex) ex.onclick = () => saveFile('未上线_' + D + '.csv', csvOf(['阶段', '天数', '面单号', '发货日期', '平台', '渠道', '仓库', 'SKU', 'WO', '718状态', '下一步动作', '已解决', '备注'], offAll().map((r) => [LVL[r.lvl][1], r.days, r.tr, r.sd, PN[r.p], r.ch || r.wlCh, r.wh, r.sku, r.wo, r.t.sub || r.t.st, r.note ? r.note.action : '', r.note && r.note.solved ? '是' : '', r.note ? r.note.remark : ''])));
+  const cm = $('#copyMiss'); if (cm) cm.onclick = () => copyText(AL.miss718.map((x) => x.t).join('\n'));
+};
+
+// ---------------- 面单均价 ----------------
+let PR = { kind: 'week', from: null, to: null, sku: '', by: 'day' };
+function vPrice() {
+  if (!PR.from || PR.kind !== 'custom') [PR.from, PR.to] = rangeOf(PR.kind);
+  const t = E.skuAvg(M, PR.from, PR.to);
+  const ps = PORDER.filter((p) => t.some((o) => o.byP[p]));
+  const tot = { n: 0, amt: 0, byP: {} };
+  t.forEach((o) => { tot.n += o.n; tot.amt += o.amt; for (const p in o.byP) { const b = tot.byP[p] || (tot.byP[p] = { n: 0, amt: 0 }); b.n += o.byP[p].n; b.amt += o.byP[p].amt; } });
+  const rows = t.map((o) => '<tr>' + td(skuCell(o.sku)) + ps.map((p) => tdn(o.byP[p] ? n2(o.byP[p].amt / o.byP[p].n) + ' <span class="muted small">(' + o.byP[p].n + ')</span>' : '<span class="muted">—</span>')).join('') + tdn('<b>' + n2(o.amt / o.n) + '</b>') + tdn(o.n) + tdn(n2(o.amt)) + '</tr>');
+  rows.push('<tr class="tot">' + td('全部包裹') + ps.map((p) => tdn(tot.byP[p] ? n2(tot.byP[p].amt / tot.byP[p].n) + ' (' + tot.byP[p].n + ')' : '—')).join('') + tdn(n2(tot.amt / Math.max(1, tot.n))) + tdn(tot.n) + tdn(n2(tot.amt)) + '</tr>');
+  const an = E.anomalies(M, D);
+  if (!PR.sku && t.length) PR.sku = t[0].sku;
+  const allSku = [...new Set(M.pkgs.map((k) => k.sku))].sort();
+  const tr = PR.sku ? E.skuTrend(M, PR.sku, PR.by === 'week' ? E.addDays(D, -83) : E.addDays(D, -29), D, PR.by) : [];
+  const tps = PORDER.filter((p) => tr.some((o) => o.byP[p]));
+  return '<section class="panel"><header><h2>SKU 单包裹打单均价</h2><p>一单多箱时，预报金额按箱数平摊到每个包裹；SKU 优先取 Wavelink，没有再用平台备注</p>' +
+    '<div class="row"><div class="seg">' + [['day', '当天'], ['week', '本周'], ['lastweek', '上周'], ['30', '近 30 天']].map(([k, l]) => '<button data-pr="' + k + '" aria-pressed="' + (PR.kind === k) + '">' + l + '</button>').join('') + '</div><input class="in" type="date" id="prF" value="' + PR.from + '"><span class="muted">→</span><input class="in" type="date" id="prT" value="' + PR.to + '"><button class="btn sm" id="prExp">导出 CSV</button></div></header>' +
+    table(['SKU'].concat(ps.map((p) => '#' + PN[p])).concat(['#全渠道均价', '#包裹数', '#金额']), rows, { empty: '这个区间没有打单记录' }) + '</section>' +
+    '<section class="panel"><header><h2>' + esc(D) + ' 面单价格异常 · ' + an.length + '</h2><p>和该 SKU 在同一平台过去 ' + M.cfg.baseDays + ' 天的中位价比较；单个包裹高 ' + Math.round(M.cfg.pkgPct * 100) + '% 以上算偏高，当天均价高 ' + Math.round(M.cfg.dayPct * 100) + '% 以上算整体上涨</p></header>' +
+    (an.length ? '<div class="alerts">' + an.map(anRow).join('') + '</div>' : '<div class="empty">当天各 SKU 的面单价格都在正常波动内</div>') + '</section>' +
+    '<section class="panel"><header><h2>单个 SKU 走势</h2><div class="row"><select class="in" id="prSku">' + allSku.map((s) => '<option' + (s === PR.sku ? ' selected' : '') + '>' + esc(s) + '</option>').join('') + '</select><div class="seg"><button data-prby="day" aria-pressed="' + (PR.by === 'day') + '">按天（30 天）</button><button data-prby="week" aria-pressed="' + (PR.by === 'week') + '">按周（12 周）</button></div></div></header>' +
+    table([PR.by === 'week' ? '周起始' : '日期'].concat(tps.map((p) => '#' + PN[p])).concat(['#全渠道', '#包裹数']), tr.slice().reverse().map((o) => '<tr>' + td(esc(o.key), 'mono') + tps.map((p) => tdn(o.byP[p] ? n2(o.byP[p].amt / o.byP[p].n) + ' <span class="muted small">(' + o.byP[p].n + ')</span>' : '—')).join('') + tdn('<b>' + n2(o.amt / o.n) + '</b>') + tdn(o.n) + '</tr>'), { empty: '没有记录' }) + '</section>' +
+    '<section class="panel"><header><h2>历史均价库</h2><p>截至 ' + esc(D) + ' 的过去 ' + M.cfg.baseDays + ' 天；绿色格子可填手动参考价，填了就用它做异常判断</p></header>' + baseTable() + '</section>';
+}
+function anRow(a) {
+  const det = a.hi.concat(a.lo).slice(0, 30).map((k) => '<tr>' + td(esc(k.tr || ''), 'mono') + td(esc(k.wo), 'mono') + tdn(n2(k.cost)) + tdn(k.wt == null ? '—' : n2(k.wt)) + td(esc(k.ch), 'small') + td(k.cost > a.med ? chip('red', '偏高') : chip('yellow', '偏低')) + '</tr>');
+  return '<div class="alert ' + a.sev + '">' + chip(a.sev, SEVL[a.sev]) + '<span class="t">' + esc(PN[a.p]) + ' · ' + skuCell(a.sku) + ' · 当天 ' + a.n + ' 个，均价 ' + n2(a.avg) + '，历史中位 ' + n2(a.med) + (a.base.ref ? '（手动参考价）' : '') + '</span><span></span><span class="d">' + esc(a.why.join('；')) + ' · 渠道：' + esc(Object.entries(a.chs).map(([c, n]) => c + '×' + n).join('，')) +
+    (det.length ? '<details><summary>查看异常包裹</summary>' + table(['面单号', '订单号', '#单包裹金额', '#预报重量', '渠道', ''], det) + '</details>' : '') + '</span></div>';
+}
+function baseTable() {
+  const keys = {}; const from = E.addDays(D, -M.cfg.baseDays);
+  M.pkgs.forEach((k) => { if (k.d < D && k.d >= from) keys[k.sku + '|' + k.p] = 1; });
+  const rows = Object.keys(keys).sort().map((key) => { const [sku, p] = key.split('|'); const b = E.baseline(M, sku, p, D); const ref = (M.cfg.ref || {})[key];
+    return '<tr>' + td(skuCell(sku)) + td(pchip(p)) + tdn(b.n) + tdn(b.n ? n2(E.median(M.pkgs.filter((k) => k.sku === sku && k.p === p && k.d < D && k.d >= from).map((k) => k.cost))) : '—') + tdn(b.p10 == null ? '—' : n2(b.p10) + ' – ' + n2(b.p90)) + tdn(b.wmed == null ? '—' : n2(b.wmed)) + td('<input class="man" data-ref="' + esc(key) + '" value="' + (ref || '') + '" placeholder="—">') + '</tr>'; });
+  return table(['SKU', '平台', '#样本', '#中位价', '#P10 – P90', '#重量中位', '参考价'], rows, { empty: '历史数据不足' }) + (rows.length ? '<div class="row"><button class="btn sm" id="saveRef">保存参考价</button></div>' : '');
+}
+AFTER.price = function () {
+  document.querySelectorAll('[data-pr]').forEach((b) => b.onclick = () => { PR.kind = b.dataset.pr; PR.from = null; render(); });
+  const f = $('#prF'), t = $('#prT');
+  if (f) f.onchange = () => { PR.kind = 'custom'; PR.from = f.value; render(); };
+  if (t) t.onchange = () => { PR.kind = 'custom'; PR.to = t.value; render(); };
+  const s = $('#prSku'); if (s) s.onchange = () => { PR.sku = s.value; render(); };
+  document.querySelectorAll('[data-prby]').forEach((b) => b.onclick = () => { PR.by = b.dataset.prby; render(); });
+  const ex = $('#prExp'); if (ex) ex.onclick = () => { const t2 = E.skuAvg(M, PR.from, PR.to); const rows = []; t2.forEach((o) => { rows.push([PR.from, PR.to, o.sku, '全渠道', o.n, E.r2(o.amt), E.r2(o.amt / o.n)]); PORDER.forEach((p) => { if (o.byP[p]) rows.push([PR.from, PR.to, o.sku, PN[p], o.byP[p].n, E.r2(o.byP[p].amt), E.r2(o.byP[p].amt / o.byP[p].n)]); }); }); saveFile('SKU均价_' + PR.from + '_' + PR.to + '.csv', csvOf(['开始', '结束', 'SKU', '平台', '包裹数', '金额', '均价'], rows)); };
+  const sr = $('#saveRef'); if (sr) sr.onclick = async () => {
+    const ref = Object.assign({}, M.cfg.ref || {});
+    document.querySelectorAll('[data-ref]').forEach((i) => { const v = parseFloat(i.value); if (isFinite(v) && v > 0) ref[i.dataset.ref] = v; else delete ref[i.dataset.ref]; });
+    await saveCfg({ ref }); toast('参考价已保存');
+  };
+};
+
+// ---------------- 余额核对 ----------------
+let LP = 'TS';
+// 余额录入草稿：键 = 日期|平台|字段，页面重绘或刷新都不丢
+ let LDRAFT = { v: {} };
+try { const s0 = JSON.parse(localStorage.getItem('dz-led-draft') || 'null'); if (s0 && s0.v) LDRAFT = s0; } catch (e) {}
+function saveDraft() { try { localStorage.setItem('dz-led-draft', JSON.stringify(LDRAFT)); } catch (e) {} }
+const ledNum = (s) => { s = String(s == null ? '' : s).replace(/[$,\s，]/g, ''); if (s === '') return null; const x = parseFloat(s); return isFinite(x) ? x : null; };
+const ledDirty = (p) => Object.keys(LDRAFT.v).some((k) => k.startsWith(D + '|' + p + '|'));
+const LF = [['credit', '新增额度/充值'], ['slip', '水单金额'], ['offline', '线下打单'], ['rebound', '反弹（扣款填负数）'], ['refund', '退款'], ['prepay', '手填预扣费总额'], ['close', '交单后余额（手抄）']];
+function vLedger() {
+  const v = (x, opt) => x == null || x === '' || (x === 0 && !(opt && opt.zero)) ? '<span class="blank">—</span>' : n2(x);
+  const rows = E.PLATS.map((p) => {
+    const all = E.ledgerRows(M, p); const r = all.find((x) => x.d === D); const e = (r && r.e) || {};
+    const prev = all.filter((x) => x.d < D).pop();
+    const open = r ? r.open : (prev ? prev.e.close : null);
+    const sys = E.covered(M, p, D) ? E.sysAmt(M, p, D) : null;
+    const st = !r ? chip('grey', '未录入') : r.ok == null ? chip('grey', '缺期初') : r.ok ? chip('green', '对平') : chip(Math.abs(r.diff) >= 20 ? 'red' : 'orange', '差 ' + n2(r.diff));
+    const inp = (k) => { const dk = D + '|' + p + '|' + k; const dv = dk in LDRAFT.v ? LDRAFT.v[dk] : (e[k] == null || e[k] === 0 && k !== 'close' ? '' : e[k]);
+      return '<td class="in' + (k === 'credit' || k === 'offline' || k === 'prepay' ? ' sep' : '') + '"><input class="man" inputmode="decimal" aria-label="' + PN[p] + ' ' + k + '" data-l="' + p + '|' + k + '" value="' + esc(dv) + '"></td>'; };
+    const cls = !r || r.ok == null ? '' : r.ok ? ' ok' : ' bad';
+    return '<tr class="r' + cls + '" data-lrow="' + p + '" data-open="' + (open == null ? '' : open) + '" data-sys="' + (sys == null ? '' : sys) + '">' + td(pchip(p)) + '<td class="n sep">' + v(open, { zero: 1 }) + '</td>' + '<td class="n">' + (sys == null ? '<span class="muted small">无报告</span>' : n2(sys)) + '</td>' +
+      ['credit', 'slip', 'refund', 'rebound', 'offline', 'prepay', 'close'].map(inp).join('') +
+      '<td class="n sep big" id="lc-' + p + '">' + (r && r.calc != null ? n2(r.calc) : '<span class="blank">—</span>') + '</td>' + '<td id="ls-' + p + '">' + st + '</td></tr>' +
+      '<tr class="why"><td colspan="12">' + (r && r.why.length ? '<span class="lead">可能原因</span>' + esc(r.why.join('；')) : '') + '</td></tr>';
+  });
+  const hist = E.ledgerRows(M, LP).slice(-40).reverse();
+  const hRows = hist.map((r) => {
+    const cls = r.diff == null ? '' : r.ok ? ' ok' : ' bad';
+    const diff = r.diff == null ? '<span class="blank">—</span>' : r.ok ? '<span class="pos">0.00</span>' : '<span class="neg">' + (r.diff > 0 ? '+' : '') + n2(r.diff) + '</span>';
+    const sysCell = r.sys == null ? '<span class="muted" title="当天没有平台报告，按手填预扣费计算">' + v(r.e.prepay) + ' *</span>' : n2(r.sys);
+    return '<tr class="r' + cls + '"><td class="mono">' + esc(r.d) + ' <span class="muted small">' + esc(r.e.time || '') + '</span></td>' +
+      '<td class="n sep">' + v(r.open, { zero: 1 }) + '</td>' +
+      '<td class="n sep">' + v(r.e.credit) + '</td><td class="n">' + v(r.e.refund) + '</td><td class="n">' + v(r.e.rebound) + '</td>' +
+      '<td class="n sep">' + sysCell + '</td><td class="n">' + v(r.e.offline) + '</td>' +
+      '<td class="n sep">' + v(r.e.prepay) + '</td>' +
+      '<td class="n sep">' + v(r.calc, { zero: 1 }) + '</td><td class="n big">' + v(r.e.close, { zero: 1 }) + '</td>' +
+      '<td class="n sep big">' + diff + '</td></tr>' +
+      (r.why.length && !r.ok ? '<tr class="why"><td colspan="11"><span class="lead">可能原因</span>' + esc(r.why.join('；')) + '</td></tr>' : '<tr class="why"><td colspan="11"></td></tr>');
+  });
+  const ledTable = (head1, head2, body, empty) => body.length ? '<div class="tw"><table class="ledger"><thead><tr>' + head1 + '</tr><tr>' + head2 + '</tr></thead><tbody>' + body.join('') + '</tbody></table></div>' : '<div class="empty">' + esc(empty) + '</div>';
+  const th = (t, c) => '<th' + (c ? ' class="' + c + '"' : '') + '>' + t + '</th>';
+  const tH1 = th('', '') + th('期初', 'g sep') + th('系统', 'g') + '<th class="g sep" colspan="4">流入</th><th class="g sep">流出</th><th class="g sep" colspan="2">平台显示</th>' + th('计算', 'g sep') + th('', '');
+  const tH2 = th('平台') + th('上一条余额', 'n sep') + th('打单金额', 'n') + th('新增额度/充值', 'in sep') + th('水单金额', 'in') + th('退款', 'in') + th('反弹 <span class="muted">扣款填负</span>', 'in') + th('线下打单', 'in sep') + th('手填预扣费', 'in sep') + th('交单后余额', 'in') + th('期末', 'n sep') + th('核对');
+  const hH1 = th('', '') + th('期初', 'g sep') + '<th class="g sep" colspan="3">流入</th><th class="g sep" colspan="2">流出</th>' + th('对照', 'g sep') + '<th class="g sep" colspan="2">期末</th>' + th('核对', 'g sep');
+  const hH2 = th('日期 时间') + th('上一条余额', 'n sep') + th('新增额度', 'n sep') + th('退款', 'n') + th('反弹', 'n') + th('系统打单', 'n sep') + th('线下', 'n') + th('手填预扣费', 'n sep') + th('计算', 'n sep') + th('手抄', 'n') + th('差值', 'n sep');
+  return '<section class="panel"><header><h2>' + esc(D) + ' 各平台余额</h2><p>期末 = 上一条余额 + 新增额度/充值 + 退款 + 反弹 − 系统打单金额 − 线下打单；和交单后余额差超过 $' + M.cfg.ledTol + ' 就预警</p></header>' +
+    ledTable(tH1, tH2, rows, '') +
+    '<div class="row"><button class="btn pri" id="ledSave"' + (S.mode === 'loading' ? ' disabled' : '') + '>' + (S.mode === 'loading' ? '数据读取中，稍等…' : '保存 ' + esc(D) + ' 的录入') + '</button><span class="muted small">输入时期末和核对会实时计算，点保存才写进多维表格；也可以直接在多维表格的“余额台账”表里改。绿色格子手动填写，空着按 0 算。系统打单金额来自上传的平台报告，没有报告时用手填预扣费</span></div></section>' +
+    '<section class="panel"><header><h2>历史台账 · ' + esc(PN[LP]) + '</h2><div class="seg">' + PORDER.map((p) => '<button data-lp="' + p + '" aria-pressed="' + (LP === p) + '">' + PN[p] + '</button>').join('') + '</div></header>' +
+    ledTable(hH1, hH2, hRows, '还没有记录') + '<p class="muted small">* 当天没有平台报告，系统打单按手填预扣费计算。左侧绿条 = 对平，红条 = 对不上。</p></section>';
+}
+// 输入时实时算期末和核对（口径同 E.ledgerRows）
+function ledLive(p) {
+  const row = document.querySelector('tr[data-lrow="' + p + '"]'); const lc = $('#lc-' + p), ls = $('#ls-' + p); if (!row || !lc || !ls) return;
+  const g = (k) => { const el = document.querySelector('[data-l="' + p + '|' + k + '"]'); return el ? ledNum(el.value) : null; };
+  const open = row.dataset.open === '' ? null : +row.dataset.open; const sys = row.dataset.sys === '' ? null : +row.dataset.sys;
+  const tag = ledDirty(p) ? ' <span class="muted small">未保存</span>' : '';
+  if (open == null) { lc.innerHTML = '<span class="blank">—</span>'; ls.innerHTML = chip('grey', '缺期初') + tag; return; }
+  const used = sys != null ? sys : (g('prepay') || 0);
+  const calc = E.r2(open + (g('credit') || 0) - used - Math.abs(g('offline') || 0) + (g('rebound') || 0) + (g('refund') || 0));
+  lc.textContent = n2(calc);
+  const close = g('close');
+  if (close == null) { ls.innerHTML = chip('grey', '待填交单后余额') + tag; return; }
+  const diff = E.r2(close - calc);
+  ls.innerHTML = (Math.abs(diff) <= M.cfg.ledTol ? chip('green', '对平') : chip(Math.abs(diff) >= 20 ? 'red' : 'orange', '差 ' + n2(diff))) + tag;
+}
+AFTER.ledger = function () {
+  document.querySelectorAll('[data-lp]').forEach((b) => b.onclick = () => { LP = b.dataset.lp; render(); });
+  document.querySelectorAll('[data-l]').forEach((el) => el.addEventListener('input', () => { const [p, k] = el.dataset.l.split('|'); LDRAFT.v[D + '|' + p + '|' + k] = el.value; saveDraft(); ledLive(p); }));
+  E.PLATS.forEach((p) => { if (ledDirty(p)) ledLive(p); });
+  const s = $('#ledSave'); if (s) s.onclick = async () => {
+    s.disabled = true;
+    try {
+      const t = new Date(); const time = String(t.getHours()).padStart(2, '0') + ':' + String(t.getMinutes()).padStart(2, '0');
+      let n = 0;
+      for (const p of E.PLATS) {
+        const v = {}; let any = false;
+        LF.forEach(([k]) => { const el = document.querySelector('[data-l="' + p + '|' + k + '"]'); v[k] = el ? ledNum(el.value) : null; if (v[k] != null) any = true; });
+        const id = p + '_' + D; const old = S.cache.led[id];
+        if (!any && !old) continue;
+        const doc = { p, d: D, time: (old && old.time) || time, credit: v.credit || 0, slip: v.slip || 0, offline: Math.abs(v.offline || 0), rebound: v.rebound || 0, refund: v.refund || 0, prepay: v.prepay, close: v.close, note: '', src: 'manual', u: nowStr() };
+        await put('led', id, doc); n++;
+      }
+      Object.keys(LDRAFT.v).forEach((k) => { if (k.startsWith(D + '|')) delete LDRAFT.v[k]; }); saveDraft();
+      rebuild(); render(); toast(n ? '已保存 ' + D + ' 的 ' + n + ' 个平台' : '没有填写任何数值，没有保存');
+    } catch (e) { s.disabled = false; toast('保存失败：' + (e.message || e) + '（已填的数还在，可以再点一次）'); }
+  };
+};
+
+// ---------------- 汇总 ----------------
+let SM = { kind: '8w', from: null, to: null, by: 'week' };
+function vSum() {
+  if (!SM.from || SM.kind !== 'custom') [SM.from, SM.to] = rangeOf(SM.kind);
+  const b = E.summary(M, SM.from, SM.to, SM.by);
+  const ps = PORDER.filter((p) => b.some((x) => x.byP[p]));
+  const max = Math.max(1, ...b.map((x) => x.amt));
+  const lbl = (k) => SM.by === 'week' ? k + ' ~ ' + E.addDays(k, 6).slice(5) : SM.by === 'all' ? SM.from + ' ~ ' + SM.to : k;
+  const chart = '<div class="legend">' + ps.map((p) => '<span><i style="background:' + PCOL[p] + '"></i>' + PN[p] + '</span>').join('') + '</div><div class="bars">' +
+    b.slice().reverse().map((x) => '<div class="brow"><span class="mono small">' + esc(SM.by === 'week' ? x.key.slice(5) + ' 周' : SM.by === 'all' ? '整段' : x.key.slice(5)) + '</span><div class="btrack" style="width:' + (x.amt / max * 100) + '%">' +
+      ps.filter((p) => x.byP[p]).map((p) => '<span data-tip="' + esc(lbl(x.key) + ' · ' + PN[p] + '：' + money(x.byP[p].amt) + '（' + x.byP[p].pk + ' 个包裹）') + '" style="flex:' + x.byP[p].amt + ';background:' + PCOL[p] + '"></span>').join('') + '</div><span class="mono small" style="text-align:right">' + money(x.amt) + '</span></div>').join('') + '</div>';
+  const rows = b.map((x) => '<tr>' + td(esc(lbl(x.key)), 'mono') + ps.map((p) => tdn(x.byP[p] ? n2(x.byP[p].amt) : '—')).join('') + tdn('<b>' + n2(x.amt) + '</b>') + tdn(x.pk) +
+    ps.map((p) => tdn(x.byP[p] && x.byP[p].hz ? n2(x.byP[p].hz) : '—')).join('') + tdn('<b>' + n2(x.hz) + '</b>') + tdn(x.hzPk) + tdn(x.hzPk ? n2(x.hz / x.hzPk) : '—') + tdn(x.credit ? n2(x.credit) : '—') + '</tr>');
+  const hz = {}; b.forEach((x) => { for (const p in x.byP) for (const s in x.byP[p].hzSku) { const k = s + '|' + p; const o = hz[k] || (hz[k] = { amt: 0, pk: 0 }); o.amt += x.byP[p].hzSku[s].amt; o.pk += x.byP[p].hzSku[s].pk; } });
+  const hzRows = Object.entries(hz).sort().map(([k, o]) => { const [s, p] = k.split('|'); return '<tr>' + td(skuCell(s)) + td(pchip(p)) + tdn(o.pk) + tdn(n2(o.amt)) + tdn(n2(o.amt / o.pk)) + '</tr>'; });
+  return '<section class="panel"><header><h2>打单金额汇总</h2><p>周从' + ['周日', '周一'][M.cfg.weekStart] + '开始；危品 = ' + esc(M.cfg.hazmat.join('、')) + '；金额为平台预报金额</p>' +
+    '<div class="row"><div class="seg">' + [['week', '本周'], ['lastweek', '上周'], ['8w', '近 8 周'], ['30', '近 30 天']].map(([k, l]) => '<button data-sm="' + k + '" aria-pressed="' + (SM.kind === k) + '">' + l + '</button>').join('') + '</div><input class="in" type="date" id="smF" value="' + SM.from + '"><span class="muted">→</span><input class="in" type="date" id="smT" value="' + SM.to + '">' +
+    '<div class="seg">' + [['week', '按周'], ['day', '按天'], ['all', '整段']].map(([k, l]) => '<button data-smby="' + k + '" aria-pressed="' + (SM.by === k) + '">' + l + '</button>').join('') + '</div><button class="btn sm" id="smExp">导出 CSV</button></div></header>' +
+    '<p class="muted small">已上传报告的覆盖范围：' + PORDER.map((p) => PN[p] + ' ' + ((M.cov[p] || []).map((r) => r[0].slice(5) + '~' + r[1].slice(5)).join('、') || '无')).join('；') + '。范围外的周是部分数据。</p>' +
+    (b.length ? chart : '') +
+    table(['区间'].concat(ps.map((p) => '#' + PN[p])).concat(['#全平台', '#包裹数']).concat(ps.map((p) => '#危品·' + PN[p])).concat(['#危品合计', '#危品包裹', '#危品均价', '#充值']), rows, { empty: '这个区间没有打单记录' }) + '</section>' +
+    '<section class="panel"><header><h2>危品明细（' + esc(SM.from) + ' ~ ' + esc(SM.to) + '）</h2></header>' + table(['SKU', '平台', '#包裹数', '#金额', '#均价'], hzRows, { empty: '没有危品打单' }) + '</section>';
+}
+AFTER.sum = function () {
+  document.querySelectorAll('[data-sm]').forEach((b) => b.onclick = () => { SM.kind = b.dataset.sm; SM.from = null; render(); });
+  document.querySelectorAll('[data-smby]').forEach((b) => b.onclick = () => { SM.by = b.dataset.smby; render(); });
+  const f = $('#smF'), t = $('#smT');
+  if (f) f.onchange = () => { SM.kind = 'custom'; SM.from = f.value; render(); };
+  if (t) t.onchange = () => { SM.kind = 'custom'; SM.to = t.value; render(); };
+  const tip = $('#tip');
+  document.querySelectorAll('[data-tip]').forEach((el) => {
+    el.addEventListener('mousemove', (e) => { tip.textContent = el.dataset.tip; tip.hidden = false; tip.style.left = Math.min(e.clientX + 12, innerWidth - 270) + 'px'; tip.style.top = (e.clientY + 14) + 'px'; });
+    el.addEventListener('mouseleave', () => { tip.hidden = true; });
+  });
+  const ex = $('#smExp'); if (ex) ex.onclick = () => {
+    const b = E.summary(M, SM.from, SM.to, SM.by); const rows = [];
+    b.forEach((x) => { PORDER.forEach((p) => { const o = x.byP[p]; if (o) rows.push([x.key, PN[p], E.r2(o.amt), o.pk, E.r2(o.hz), o.hzPk, x.creditByP[p] || 0]); }); rows.push([x.key, '全平台', E.r2(x.amt), x.pk, E.r2(x.hz), x.hzPk, x.credit]); });
+    saveFile('打单汇总_' + SM.from + '_' + SM.to + '.csv', csvOf(['区间起', '平台', '打单金额', '包裹数', '危品金额', '危品包裹', '充值'], rows));
+  };
+};
+
+// ---------------- 设置 ----------------
+async function saveCfg(patch) {
+  const cfg = Object.assign({}, S.cache.meta.cfg || {}, patch);
+  await put('meta', 'cfg', cfg); S.cache.meta.cfg = cfg; rebuild(); render();
+}
+function vSet() {
+  const c = M.cfg;
+  const f = (id, label, v, hint) => '<label class="f">' + esc(label) + '<input class="man" id="' + id + '" value="' + esc(v) + '">' + (hint ? '<span class="muted small">' + esc(hint) + '</span>' : '') + '</label>';
+  const labDocs = Object.keys(S.cache.lab).sort().reverse();
+  const counts = Object.fromEntries(['lab', 'wl', 'trk', 'led', 'who', 'note', 'spec'].map((k) => [k, Object.keys(S.cache[k]).length]));
+  return '<section class="panel"><header><h2>预警规则</h2></header><div class="grid2" style="gap:12px">' +
+    f('cHaz', '危品 SKU（逗号分隔）', c.hazmat.join(','), '') + f('cIgn', '交单核对忽略的 Wavelink 渠道', (c.ignoreCh || []).join(','), '比如官方面单、不走打单平台的渠道') +
+    f('cOn', '未上线 关注 / 预警 / 严重（天）', [c.on1, c.on2, c.on3].join('/'), '') + f('cBatch', '批量未上线：个数 / 占比', c.batchN + '/' + c.batchPct, '同一天同平台同仓库') +
+    f('cBase', '历史均价：回看天数 / 最少样本', c.baseDays + '/' + c.baseMin, '') + f('cPct', '单包裹偏高 % / 偏高至少 $ / 偏低 % / 当天整体上涨 %', [c.pkgPct, c.pkgAbs, c.lowPct, c.dayPct].join('/'), '小数，比如 0.35 = 35%') +
+    f('cTol', '余额允许误差（$）', c.ledTol, '') + f('cWeek', '一周从哪天开始（0=周日，1=周一）', c.weekStart, '') + f('cLoad', '打开时读取最近多少天', c.loadDays || 150, '') +
+    '</div><div class="row"><button class="btn pri" id="cfgSave">保存规则</button></div></section>' +
+    '<section class="panel"><header><h2>数据</h2><p>数据存在这个多维表格的“存档-…”和“余额台账”表里，打开这个多维表格的同事看到的是同一份。存档表是插件读写用的，不要手动改；余额台账可以直接在表格里填</p></header>' +
+    '<p class="small">已读取：打单 ' + counts.lab + ' 天·平台 · Wavelink ' + counts.wl + ' 天·仓 · 718 ' + counts.trk + ' 天 · 余额 ' + counts.led + ' 条 · 仓库发货记录 ' + counts.who + ' 天·仓 · 跟进备注 ' + counts.note + ' · 特殊情况 ' + counts.spec + '</p>' +
+    '<div class="row"><label class="btn pri">导入数据包<input type="file" id="pkImp" accept=".json" hidden></label><button class="btn" id="pkExp">导出数据包（备份）</button><label class="small"><input type="checkbox" id="pkRep"> 导入时先清空表格里的数据</label></div>' +
+    '<p class="small muted">导入默认是合并：同一天同一平台的数据用数据包里的覆盖，手动录入的余额不会被覆盖。第一次导入历史数据要几分钟，期间别关插件。</p>' +
+    '<div class="row"><button class="btn" id="expAll">导出全部源数据（Excel）</button><button class="btn" id="reload">重新读取</button></div>' +
+    '<details><summary>删除某一天某平台的打单数据（上传错了时使用）</summary><div class="row" style="margin-top:8px"><select class="in" id="delId">' + labDocs.map((id) => '<option>' + esc(id) + '</option>').join('') + '</select><button class="btn sm" id="delAsk">删除</button><span id="delConfirm"></span></div></details></section>';
+}
+AFTER.set = function () {
+  const v = (id) => $('#' + id).value.trim(); const nums = (s) => s.split('/').map(Number);
+  $('#cfgSave').onclick = async () => {
+    const on = nums(v('cOn')), bt = nums(v('cBatch')), bs = nums(v('cBase')), pc = nums(v('cPct'));
+    await saveCfg({ hazmat: v('cHaz').split(/[,，\s]+/).filter(Boolean), ignoreCh: v('cIgn').split(/[,，]+/).map((x) => x.trim()).filter(Boolean),
+      on1: on[0], on2: on[1], on3: on[2], batchN: bt[0], batchPct: bt[1], baseDays: bs[0], baseMin: bs[1], pkgPct: pc[0], pkgAbs: pc[1], lowPct: pc[2], dayPct: pc[3],
+      ledTol: +v('cTol'), weekStart: +v('cWeek') ? 1 : 0, loadDays: +v('cLoad') || 150 });
+    toast('规则已保存');
+  };
+  $('#pkExp').onclick = () => saveFile('打单核对数据包_' + today + '.json', window.OFFLINE.exportPack());
+  const REPMODE = () => ($('#pkRep') && $('#pkRep').checked ? 'replace' : 'merge');
+  $('#pkImp').onchange = async (e) => { const f = e.target.files[0]; if (!f) return; e.target.value = ''; try { setStatus('warn', '正在导入，别关插件…'); const n = await window.OFFLINE.importPack(await f.text(), REPMODE(), (a, b) => setStatus('warn', '正在写入多维表格 ' + a + ' / ' + b + '，别关插件…')); await loadAll(); rebuild(); render(); toast('已导入 ' + n + ' 份数据'); } catch (err) { setStatus('warn', '导入中断'); toast('导入失败：' + (err.message || err) + '（可以再导入一次，已写入的会覆盖）'); } };
+  $('#reload').onclick = async () => { if (S.mode === 'db') { setStatus('', '正在重新读取…'); await window.OFFLINE.reload(); await loadAll(); rebuild(); render(); toast('已重新读取'); } };
+  $('#expAll').onclick = async () => {
+    try { await window.loadXLSX(); } catch (e) { toast(e.message); return; }
+    const wb = XLSX.utils.book_new();
+    const add = (name, head, rows) => XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([head].concat(rows)), name);
+    add('打单记录', ['平台', '平台订单号', '面单号', '打单时间', '预报金额', '包裹数', '平台备注SKU', '渠道', '重量', '有效', '状态'], M.labels.map((l) => [PN[l.p], l.wo, l.trs.join(','), l.dt, l.amt, l.n, l.sku, l.ch, l.wt, l.v ? '是' : '否', l.st]));
+    add('包裹明细', ['平台', '打单日', '面单号', 'WO', 'SKU', '单包裹金额', '仓库', 'WL渠道'], M.pkgs.map((k) => [PN[k.p], k.d, k.tr, k.wo, k.sku, E.r2(k.cost), k.wh, k.wlCh]));
+    add('Wavelink', ['仓库', 'WO', '派送单号', 'SKU', '物流渠道', '状态', '下单时间', '发货时间'], M.wl.map((w) => [w.wh, w.wo, w.trs.join(','), w.skus, w.ch, w.st, w.ot, w.sd]));
+    add('718', ['面单号', '发货时间', '物流商', '状态', '子状态', '最近轨迹', '上网时间', '签收时间', '停留天数', '备注'], M.trk.map((t) => [t.tr, t.send, t.carrier, t.st, t.sub, t.last, t.on, t.sign, t.stay, t.note]));
+    add('仓库发货记录', ['仓库', '日期', 'SKU', '出库'], M.whOut.flatMap((r) => Object.entries(r.sku).map(([k, q]) => [r.wh, r.d, k, q])));
+    add('余额台账', ['平台', '日期', '时间', '新增额度', '水单', '线下', '反弹', '退款', '手填预扣费', '期末手抄', '来源'], M.ledger.map((e) => [PN[e.p], e.d, e.time, e.credit, e.slip, e.offline, e.rebound, e.refund, e.prepay, e.close, e.src]));
+    add('跟进备注', ['面单号', '下一步', '已解决', '备注', '时间'], Object.entries(S.cache.note).map(([t, n]) => [t, n.action, n.solved ? '是' : '', n.remark, n.at]));
+    add('特殊情况', ['面单号', '打单日', '平台', 'WO', '原因', '说明', '确认时间'], Object.entries(S.cache.spec).map(([t, s]) => [t, s.d, PN[s.p], s.wo, s.reason, s.remark, s.at]));
+    const out = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+    saveFile('打单核对源数据_' + today + '.xlsx', new Blob([out]));
+  };
+  $('#delAsk').onclick = () => {
+    const id = $('#delId').value; if (!id) return;
+    $('#delConfirm').innerHTML = '<span class="small">确定删除 ' + esc(id) + '？</span> <button class="btn sm" id="delYes">确定</button>';
+    $('#delYes').onclick = async () => { await del('lab', id); rebuild(); render(); toast('已删除 ' + id); };
+  };
+};
+
+// ---------------- boot ----------------
+document.addEventListener('click', (e) => { const g = e.target.closest('[data-go]'); if (g) go(g.dataset.go); const t = e.target.closest('[data-tab]'); if (t) go(t.dataset.tab); });
+$('#dSel').addEventListener('change', () => { if ($('#dSel').value) { D = $('#dSel').value; computeAlerts(); render(); } });
+const step = (dir) => { if (!M || !M.dates.length) return; const ds = M.dates; let i = dir > 0 ? ds.findIndex((d) => d > D) : ds.length - 1 - [...ds].reverse().findIndex((d) => d < D); if (dir < 0 && ![...ds].some((d) => d < D)) i = -1; if (i >= 0 && i < ds.length) { D = ds[i]; computeAlerts(); render(); } };
+$('#dPrev').onclick = () => step(-1); $('#dNext').onclick = () => step(1);
+try { const t = localStorage.getItem('dz-tab'); if (t && TABS.some(([k]) => k === t)) TAB = t; } catch (e) {}
+rebuild(); render();
+READY = initStore().then(() => { rebuild(); render(); }).catch((e) => { setStatus('warn', '多维表格读取失败：' + (e && (e.code || e.message) || e)); });
 })();
 </script>
-<script type="module">
-const SRC = [
-  'https://registry.npmmirror.com/@lark-base-open/js-sdk/1.0.2/files/dist/index.mjs',
-  'https://cdn.jsdelivr.net/npm/@lark-base-open/js-sdk@1.0.2/dist/index.mjs',
-  'https://unpkg.com/@lark-base-open/js-sdk@1.0.2/dist/index.mjs',
-  'https://esm.sh/@lark-base-open/js-sdk@1.0.2'
-];
-const withTimeout = (p, ms) => Promise.race([p, new Promise((_, r) => setTimeout(() => r(new Error('超时')), ms))]);
-let SDK = null, used = '', t0 = Date.now(), errs = [];
-for (const u of SRC) {
-  try { SDK = await withTimeout(import(u), 20000); used = new URL(u).host; break; }
-  catch (e) { errs.push(new URL(u).host + '：' + msg(e)); }
-}
-if (!SDK) {
-  set('sdk', 'bad', '下载失败：' + errs.join('；'));
-  ['env', 'base', 'user', 'table', 'write', 'read', 'big'].forEach((k) => set(k, 'bad', '组件没加载，无法测试'));
-} else {
-  set('sdk', 'ok', '用 ' + used + '，' + ((Date.now() - t0) / 1000).toFixed(1) + ' 秒' + (errs.length ? '（前面失败：' + errs.join('；') + '）' : ''));
-  run(SDK).catch((e) => console.error(e));
-}
 
-async function run({ bitable, FieldType }) {
-  const inFrame = window.self !== window.top;
-  // 1. 环境 + 当前表格
-  let base = bitable.base;
-  try {
-    const metas = await withTimeout(base.getTableMetaList(), 8000);
-    set('env', 'ok', '已在多维表格里运行');
-    set('base', 'ok', '这个多维表格有 ' + metas.length + ' 张表：' + metas.map((m) => m.name).join('、'));
-  } catch (e) {
-    set('env', 'bad', inFrame ? '在框里打开了，但连不上多维表格：' + msg(e) : '现在是直接用浏览器打开的。要在飞书多维表格的“插件 → 自定义插件”里打开才能测试');
-    ['base', 'user', 'table', 'write', 'read', 'big'].forEach((k) => set(k, 'bad', '没有在多维表格里运行'));
-    return;
-  }
-  // 2. 用户
-  let uid = '';
-  try { uid = await bitable.bridge.getUserId(); set('user', 'ok', '用户 ID ' + uid.slice(0, 6) + '…（不同的人这里应该不一样）'); }
-  catch (e) { set('user', 'bad', msg(e)); }
-  // 3. 测试表
-  let table, fText, fWho, fTime;
-  try {
-    const metas = await base.getTableMetaList();
-    let m = metas.find((x) => x.name === '插件测试');
-    if (!m) {
-      const r = await base.addTable({ name: '插件测试', fields: [{ name: '内容', type: FieldType.Text }] });
-      table = await base.getTableById(r.tableId);
-      await table.addField({ type: FieldType.Text, name: '写入人' });
-      await table.addField({ type: FieldType.Text, name: '时间' });
-      set('table', 'ok', '已新建');
-    } else { table = await base.getTableById(m.id); set('table', 'ok', '已找到'); }
-    const fs = await table.getFieldMetaList();
-    const byName = (n) => (fs.find((f) => f.name === n) || {}).id;
-    fText = byName('内容') || fs[0].id; fWho = byName('写入人'); fTime = byName('时间');
-  } catch (e) { set('table', 'bad', msg(e) + '（可能是你对这个多维表格只有查看权限）'); ['write', 'read', 'big'].forEach((k) => set(k, 'bad', '没有测试表')); return; }
-
-  const seg = (s) => [{ type: 'text', text: s }];
-  const txt = (v) => Array.isArray(v) ? v.map((x) => x.text || '').join('') : (v == null ? '' : String(v));
-  const now = () => new Date().toLocaleString('zh-CN', { hour12: false });
-
-  // 4. 读
-  const live = document.getElementById('live');
-  async function readAll(silent) {
-    try {
-      let all = [], tok;
-      do { const r = await table.getRecords({ pageSize: 200, pageToken: tok }); all = all.concat(r.records); tok = r.hasMore ? r.pageToken : null; } while (tok);
-      live.innerHTML = all.slice(-15).reverse().map((r) => { const c = txt(r.fields[fText]); return '<div>' + esc(txt(r.fields[fTime])) + ' · ' + esc(txt(r.fields[fWho]).slice(0, 6)) + '… · ' + esc(c.length > 60 ? '大段数据 ' + c.length + ' 字' : c) + '</div>'; }).join('') || '<div>还没有记录</div>';
-      if (!silent) set('read', 'ok', '读到 ' + all.length + ' 条');
-      return all;
-    } catch (e) { set('read', 'bad', msg(e)); return []; }
-  }
-  await readAll();
-  // 5. 实时
-  let liveN = 0;
-  const onChange = () => { liveN++; readAll(true); set('read', 'ok', '读取正常；自动收到别人的改动 ' + liveN + ' 次'); };
-  try { table.onRecordAdd(onChange); table.onRecordModify(onChange); } catch (e) { set('read', 'bad', '不能监听改动：' + msg(e)); }
-
-  // 6. 写
-  const bW = document.getElementById('bWrite'), bB = document.getElementById('bBig');
-  bW.disabled = false; bB.disabled = false;
-  const write = async (content) => {
-    const f = {}; f[fText] = seg(content); if (fWho) f[fWho] = seg(uid || '?'); if (fTime) f[fTime] = seg(now());
-    return table.addRecord({ fields: f });
-  };
-  set('write', 'wait', '点上面的“写入一条”测试');
-  set('big', 'wait', '点“测试大段数据”测试');
-  bW.onclick = async () => { bW.disabled = true; try { await write('测试 ' + now()); set('write', 'ok', '写入成功'); await readAll(); } catch (e) { set('write', 'bad', msg(e)); } bW.disabled = false; };
-  bB.onclick = async () => {
-    bB.disabled = true;
-    const sizes = [20000, 50000, 100000, 200000]; let okMax = 0, fail = '';
-    for (const n of sizes) {
-      const s = ('{"wo":"WO26101213155","tr":"878504715835","sku":"IPA-99-04"},').repeat(Math.ceil(n / 60)).slice(0, n);
-      try {
-        const id = await write(s);
-        const v = txt(await table.getCellValue(fText, id));
-        if (v.length === n) okMax = n; else { fail = n + ' 字写进去只读回 ' + v.length + ' 字'; await table.deleteRecord(id); break; }
-        await table.deleteRecord(id);
-      } catch (e) { fail = n + ' 字失败：' + msg(e); break; }
-    }
-    set('big', okMax ? 'ok' : 'bad', (okMax ? '一个格子能完整存 ' + okMax.toLocaleString() + ' 字' : '') + (fail ? (okMax ? '；' : '') + fail : ''));
-    bB.disabled = false; readAll(true);
-  };
-}
-</script>
-<script>
-document.getElementById('bCopy').onclick = function () {
-  var t = ORDER.map(function (k) { var r = R[k] || { st: 'wait', d: '' }; return (r.st === 'ok' ? '✔ ' : r.st === 'bad' ? '✘ ' : '… ') + NAME[k] + '：' + r.d; }).join('\n') + '\n浏览器：' + navigator.userAgent;
-  var ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select();
-  var ok = false; try { ok = document.execCommand('copy'); } catch (e) {}
-  if (!ok && navigator.clipboard) navigator.clipboard.writeText(t).then(function () {}, function () {});
-  ta.remove(); this.textContent = '已复制，粘贴发给 Claude';
-};
-</script>
-</body>
-</html>
+</body></html>
