@@ -268,7 +268,14 @@ details>summary{cursor:pointer;color:var(--accent);font-size:12.5px}
           if (!m && fm.length && !have[fields[0][0]]) { have[fields[0][0]] = fm[0].id; }
           var miss = fields.filter(function (f) { return !have[f[0]]; });
           return miss.reduce(function (pr, f) {
-            return pr.then(function () { return table.addField({ type: f[1] === 'N' ? FT.Number : FT.Text, name: f[0] }).then(function (id) { have[f[0]] = id; }); });
+            return pr.then(function () {
+              if (f[1] === 'L') { // 关联到另一张表；建不了就跳过
+                var tg = T[f[2]]; if (!tg || FT.SingleLink == null) return;
+                return table.addField({ type: FT.SingleLink, name: f[0], property: { tableId: tg.table.id, multiple: true } })
+                  .then(function (id) { have[f[0]] = id; }, function (e) { console.warn('关联字段建不了', e); });
+              }
+              return table.addField({ type: f[1] === 'N' ? FT.Number : FT.Text, name: f[0] }).then(function (id) { have[f[0]] = id; });
+            });
           }, Promise.resolve()).then(function () { T[name] = { table: table, f: have }; });
         });
       });
@@ -407,6 +414,90 @@ details>summary{cursor:pointer;color:var(--accent);font-size:12.5px}
       return DB;
     });
   }
+
+  // ---- 给人看的表：按“键”比对，只写插件负责的列 ----
+  // spec = { name, fields:[[名称,'T'|'N'|'L',目标表]...]（第一个是键）, own:[插件负责的列], onNew:{列:默认值}, stale:function(rowValues)->'delete'|{列:值}|null }
+  // rows = [{ key, v:{列:值} }]（关联列的值是目标表的键数组）
+  function enc(type, v, linkMap, tgName) {
+    if (type === 'N') return v == null || v === '' || !isFinite(+v) ? null : Math.round(+v * 100) / 100;
+    if (type === 'L') { var ids = (v || []).map(function (k) { return linkMap && linkMap[k]; }).filter(Boolean); return ids.length ? { recordIds: ids, tableId: T[tgName].table.id } : null; }
+    return seg(v);
+  }
+  function dec(type, v) {
+    if (type === 'N') return v == null || v === '' ? null : (typeof v === 'number' ? Math.round(v * 100) / 100 : num(v));
+    if (type === 'L') { if (!v) return ''; var a = v.recordIds || v.record_ids || (Array.isArray(v) ? v.map(function (x) { return x.recordId || x.record_id || x.id; }) : []); return (a || []).slice().sort().join(','); }
+    return txt(v);
+  }
+  var KEYMAP = {}; // 表名 -> {键: recordId}
+  function syncSheet(spec, rows) {
+    return ensureTable(spec.name, spec.fields).then(function () {
+      var t = T[spec.name], f = t.f, types = {};
+      spec.fields.forEach(function (x) { types[x[0]] = x; });
+      var own = spec.own.filter(function (n) { return f[n]; });
+      return allRecords(t.table).then(function (recs) {
+        var have = {}, dupes = [];
+        recs.forEach(function (r) {
+          var k = txt(r.fields[f[spec.fields[0][0]]]); if (!k) return;
+          var vals = {}; spec.fields.forEach(function (x) { if (f[x[0]]) vals[x[0]] = dec(x[1], r.fields[f[x[0]]]); });
+          if (have[k]) dupes.push(r.recordId); else have[k] = { id: r.recordId, vals: vals };
+        });
+        var adds = [], sets = [], dels = dupes.slice(), want = {};
+        rows.forEach(function (row) {
+          want[row.key] = 1;
+          var cells = {}, ex = have[row.key];
+          own.forEach(function (n) {
+            var x = types[n]; var e = enc(x[1], row.v[n], x[1] === 'L' ? KEYMAP[x[2]] : null, x[2]);
+            if (!ex) { if (e != null) cells[f[n]] = e; return; }
+            var nv = x[1] === 'L' ? (e ? e.recordIds.slice().sort().join(',') : '') : dec(x[1], e);
+            var ov = ex.vals[n]; if ((nv == null ? '' : nv) !== (ov == null ? '' : ov)) cells[f[n]] = e;
+          });
+          if (!ex) {
+            cells[f[spec.fields[0][0]]] = seg(row.key);
+            Object.keys(spec.onNew || {}).forEach(function (n) { if (f[n]) cells[f[n]] = enc(types[n][1], spec.onNew[n]); });
+            adds.push({ key: row.key, fields: cells });
+          } else if (Object.keys(cells).length) sets.push({ recordId: ex.id, fields: cells });
+        });
+        Object.keys(have).forEach(function (k) {
+          if (want[k] || !spec.stale) return;
+          var r = spec.stale(have[k].vals, k); if (!r) return;
+          if (r === 'delete') { dels.push(have[k].id); return; }
+          var cells = {}; Object.keys(r).forEach(function (n) { if (f[n] && (have[k].vals[n] || '') !== (r[n] || '')) cells[f[n]] = enc(types[n][1], r[n]); });
+          if (Object.keys(cells).length) sets.push({ recordId: have[k].id, fields: cells });
+        });
+        var km = {}; Object.keys(have).forEach(function (k) { km[k] = have[k].id; });
+        lastOwnWrite = Date.now();
+        var stripLinks = function (list) { list.forEach(function (r) { spec.fields.forEach(function (x) { if (x[1] === 'L' && f[x[0]]) delete r.fields[f[x[0]]]; }); }); };
+        var trySet = function (b) { return t.table.setRecords(b).catch(function (e) { stripLinks(b); return t.table.setRecords(b); }); };
+        return seq(batches(sets, 100, 900000), trySet)
+          .then(function () { return seq(batches(adds, 100, 900000), function (b) {
+            var go = function () { return t.table.addRecords(b.map(function (x) { return { fields: x.fields }; })); };
+            return go().catch(function () { stripLinks(b); return go(); }).then(function (ids) { ids.forEach(function (id, i) { km[b[i].key] = id; }); });
+          }); })
+          .then(function () { return dels.length ? seq(batches(dels, 200, 1e9), function (b) { return t.table.deleteRecords(b); }) : null; })
+          .then(function () { dels.forEach(function (id) { Object.keys(km).forEach(function (k) { if (km[k] === id) delete km[k]; }); }); KEYMAP[spec.name] = km; lastOwnWrite = Date.now(); return { add: adds.length, set: sets.length, del: dels.length }; });
+      });
+    });
+  }
+  // 余额台账的计算列：按键写到已有的行
+  var LEDCALC = [['上一条余额', 'N'], ['系统打单金额', 'N'], ['期末(计算)', 'N'], ['差额', 'N'], ['核对', 'T'], ['可能原因', 'T']];
+  function syncLedger(calc) {
+    var t = T[LEDT];
+    return seq(LEDCALC.filter(function (x) { return !t.f[x[0]]; }), function (x) { return t.table.addField({ type: x[1] === 'N' ? FT.Number : FT.Text, name: x[0] }).then(function (id) { t.f[x[0]] = id; }); })
+      .then(function () { return allRecords(t.table); })
+      .then(function (recs) {
+        var byId = {}; recs.forEach(function (r) { byId[r.recordId] = r; });
+        var sets = [];
+        Object.keys(calc).forEach(function (key) {
+          var ids = IDX['led/' + key] || []; var r = byId[ids[0]]; if (!r) return;
+          var cells = {};
+          LEDCALC.forEach(function (x) { var e = enc(x[1], calc[key][x[0]]); var nv = dec(x[1], e), ov = dec(x[1], r.fields[t.f[x[0]]]); if ((nv == null ? '' : nv) !== (ov == null ? '' : ov)) cells[t.f[x[0]]] = e; });
+          if (Object.keys(cells).length) sets.push({ recordId: r.recordId, fields: cells });
+        });
+        lastOwnWrite = Date.now();
+        return seq(batches(sets, 100, 900000), function (b) { return t.table.setRecords(b); }).then(function () { lastOwnWrite = Date.now(); return { set: sets.length }; });
+      });
+  }
+  window.FS = { syncSheet: syncSheet, syncLedger: syncLedger };
 
   window.OFFLINE = {
     count: function () { return MEM.size; },
@@ -1374,7 +1465,7 @@ function render() {
   (AFTER[TAB] || (() => {}))();
 }
 const AFTER = {};
-AFTER.home = function () { const REPMODE = () => 'merge'; const i = $('#pkImp0'); if (i) i.onchange = async (e) => { const f = e.target.files[0]; if (!f) return; e.target.value = ''; try { setStatus('warn', '正在导入，别关插件…'); const n = await window.OFFLINE.importPack(await f.text(), REPMODE(), (a, b) => setStatus('warn', '正在写入多维表格 ' + a + ' / ' + b + '，别关插件…')); await loadAll(); rebuild(); render(); toast('已导入 ' + n + ' 份数据'); } catch (err) { setStatus('warn', '导入中断'); toast('导入失败：' + (err.message || err) + '（可以再导入一次，已写入的会覆盖）'); } }; };
+AFTER.home = function () { const REPMODE = () => 'merge'; const i = $('#pkImp0'); if (i) i.onchange = async (e) => { const f = e.target.files[0]; if (!f) return; e.target.value = ''; try { setStatus('warn', '正在导入，别关插件…'); const n = await window.OFFLINE.importPack(await f.text(), REPMODE(), (a, b) => setStatus('warn', '正在写入多维表格 ' + a + ' / ' + b + '，别关插件…')); await loadAll(); rebuild(); render(); toast('已导入 ' + n + ' 份数据'); syncSheets('import'); } catch (err) { setStatus('warn', '导入中断'); toast('导入失败：' + (err.message || err) + '（可以再导入一次，已写入的会覆盖）'); } }; };
 function toast(t) { const el = $('#toast'); el.textContent = t; el.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => { el.hidden = true; }, 2600); }
 
 // ---------------- helpers ----------------
@@ -1538,7 +1629,7 @@ async function savePending() {
     try { await put('upl', ud, u); } catch (e) { console.warn('上传记录写入失败', e); }
     PENDING = null; rebuild();
     const ld = P.labels.map((l) => l.d).filter(Boolean).sort().pop(); if (ld) D = ld; computeAlerts();
-    toast('已保存 ' + todo.length + ' 份数据'); render();
+    toast('已保存 ' + todo.length + ' 份数据'); render(); syncSheets('upload');
   } catch (e) { msg.textContent = '保存失败：' + (e.code ? e.code + ' ' : '') + (e.message || e); btn.disabled = false; }
 }
 
@@ -1834,7 +1925,7 @@ AFTER.ledger = function () {
         await put('led', id, doc); n++;
       }
       Object.keys(LDRAFT.v).forEach((k) => { if (k.startsWith(D + '|')) delete LDRAFT.v[k]; }); saveDraft();
-      rebuild(); render(); toast(n ? '已保存 ' + D + ' 的 ' + n + ' 个平台' : '没有填写任何数值，没有保存');
+      rebuild(); render(); toast(n ? '已保存 ' + D + ' 的 ' + n + ' 个平台' : '没有填写任何数值，没有保存'); if (n) syncSheets('ledger');
     } catch (e) { s.disabled = false; toast('保存失败：' + (e.message || e) + '（已填的数还在，可以再点一次）'); }
   };
 };
@@ -1883,7 +1974,7 @@ AFTER.sum = function () {
 // ---------------- 设置 ----------------
 async function saveCfg(patch) {
   const cfg = Object.assign({}, S.cache.meta.cfg || {}, patch);
-  await put('meta', 'cfg', cfg); S.cache.meta.cfg = cfg; rebuild(); render();
+  await put('meta', 'cfg', cfg); S.cache.meta.cfg = cfg; rebuild(); render(); syncSheets('cfg');
 }
 function vSet() {
   const c = M.cfg;
@@ -1900,7 +1991,8 @@ function vSet() {
     '<p class="small">已读取：打单 ' + counts.lab + ' 天·平台 · Wavelink ' + counts.wl + ' 天·仓 · 718 ' + counts.trk + ' 天 · 余额 ' + counts.led + ' 条 · 仓库发货记录 ' + counts.who + ' 天·仓 · 跟进备注 ' + counts.note + ' · 特殊情况 ' + counts.spec + '</p>' +
     '<div class="row"><label class="btn pri">导入数据包<input type="file" id="pkImp" accept=".json" hidden></label><button class="btn" id="pkExp">导出数据包（备份）</button><label class="small"><input type="checkbox" id="pkRep"> 导入时先清空表格里的数据</label></div>' +
     '<p class="small muted">导入默认是合并：同一天同一平台的数据用数据包里的覆盖，手动录入的余额不会被覆盖。第一次导入历史数据要几分钟，期间别关插件。</p>' +
-    '<div class="row"><button class="btn" id="expAll">导出全部源数据（Excel）</button><button class="btn" id="reload">重新读取</button></div>' +
+    '<div class="row"><button class="btn" id="expAll">导出全部源数据（Excel）</button><button class="btn" id="reload">重新读取</button><button class="btn" id="syncNow">更新表格</button></div>' +
+    '<p class="small muted">“未上线明细、上线率汇总、每日打单汇总、交单核对SKU、面单均价、异常单”和余额台账的计算列由插件自动生成：上传报告、保存余额后会自动更新。' + (SYNC.last ? '上次更新 ' + esc(SYNC.last) + '：' + esc((SYNC.res || []).join('；')) : '') + '</p>' +
     '<details><summary>删除某一天某平台的打单数据（上传错了时使用）</summary><div class="row" style="margin-top:8px"><select class="in" id="delId">' + labDocs.map((id) => '<option>' + esc(id) + '</option>').join('') + '</select><button class="btn sm" id="delAsk">删除</button><span id="delConfirm"></span></div></details></section>';
 }
 AFTER.set = function () {
@@ -1914,7 +2006,8 @@ AFTER.set = function () {
   };
   $('#pkExp').onclick = () => saveFile('打单核对数据包_' + today + '.json', window.OFFLINE.exportPack());
   const REPMODE = () => ($('#pkRep') && $('#pkRep').checked ? 'replace' : 'merge');
-  $('#pkImp').onchange = async (e) => { const f = e.target.files[0]; if (!f) return; e.target.value = ''; try { setStatus('warn', '正在导入，别关插件…'); const n = await window.OFFLINE.importPack(await f.text(), REPMODE(), (a, b) => setStatus('warn', '正在写入多维表格 ' + a + ' / ' + b + '，别关插件…')); await loadAll(); rebuild(); render(); toast('已导入 ' + n + ' 份数据'); } catch (err) { setStatus('warn', '导入中断'); toast('导入失败：' + (err.message || err) + '（可以再导入一次，已写入的会覆盖）'); } };
+  $('#pkImp').onchange = async (e) => { const f = e.target.files[0]; if (!f) return; e.target.value = ''; try { setStatus('warn', '正在导入，别关插件…'); const n = await window.OFFLINE.importPack(await f.text(), REPMODE(), (a, b) => setStatus('warn', '正在写入多维表格 ' + a + ' / ' + b + '，别关插件…')); await loadAll(); rebuild(); render(); toast('已导入 ' + n + ' 份数据'); syncSheets('import'); } catch (err) { setStatus('warn', '导入中断'); toast('导入失败：' + (err.message || err) + '（可以再导入一次，已写入的会覆盖）'); } };
+  $('#syncNow').onclick = () => syncSheets('manual');
   $('#reload').onclick = async () => { if (S.mode === 'db') { setStatus('', '正在重新读取…'); await window.OFFLINE.reload(); await loadAll(); rebuild(); render(); toast('已重新读取'); } };
   $('#expAll').onclick = async () => {
     try { await window.loadXLSX(); } catch (e) { toast(e.message); return; }
@@ -1937,6 +2030,100 @@ AFTER.set = function () {
     $('#delYes').onclick = async () => { await del('lab', id); rebuild(); render(); toast('已删除 ' + id); };
   };
 };
+
+// ---------------- 写入给人看的表 ----------------
+let SYNC = { running: false, again: false, last: null, err: null };
+const STAGE = { 3: '严重', 2: '预警', 1: '关注', 0: '观察' };
+const SHEETS = {
+  off: { name: '未上线明细', fields: [['面单号', 'T'], ['发货日', 'T'], ['平台', 'T'], ['仓', 'T'], ['WO', 'T'], ['渠道', 'T'], ['SKU', 'T'], ['承运商', 'T'], ['718状态', 'T'], ['停留天数', 'N'], ['阶段', 'T'], ['作废面单', 'T'], ['查轨迹', 'T'], ['负责人', 'T'], ['处理结果', 'T']],
+    own: ['发货日', '平台', '仓', 'WO', '渠道', 'SKU', '承运商', '718状态', '停留天数', '阶段', '作废面单', '查轨迹'] },
+  onl: { name: '上线率汇总', fields: [['编号', 'T'], ['发货日', 'T'], ['平台', 'T'], ['仓', 'T'], ['总数', 'N'], ['已上线', 'N'], ['未上线', 'N'], ['上线率%', 'N'], ['未上线明细', 'L', '未上线明细']],
+    own: ['发货日', '平台', '仓', '总数', '已上线', '未上线', '上线率%', '未上线明细'], stale: () => 'delete' },
+  day: { name: '每日打单汇总', fields: [['编号', 'T'], ['日期', 'T'], ['平台', 'T'], ['仓', 'T'], ['包裹数', 'N'], ['金额', 'N'], ['危品包裹', 'N'], ['危品金额', 'N']],
+    own: ['日期', '平台', '仓', '包裹数', '金额', '危品包裹', '危品金额'], stale: () => 'delete' },
+  sku: { name: '交单核对SKU', fields: [['编号', 'T'], ['日期', 'T'], ['仓', 'T'], ['SKU', 'T'], ['已交运', 'N'], ['已发货', 'N'], ['差值', 'N'], ['说明', 'T']],
+    own: ['日期', '仓', 'SKU', '已交运', '已发货', '差值', '说明'], stale: () => 'delete' },
+  pr: { name: '面单均价', fields: [['编号', 'T'], ['周', 'T'], ['SKU', 'T'], ['平台', 'T'], ['包裹数', 'N'], ['金额', 'N'], ['均价', 'N']],
+    own: ['周', 'SKU', '平台', '包裹数', '金额', '均价'], stale: () => 'delete' },
+  exc: { name: '异常单', fields: [['编号', 'T'], ['发现日', 'T'], ['类型', 'T'], ['平台', 'T'], ['仓', 'T'], ['WO', 'T'], ['单号', 'T'], ['SKU', 'T'], ['说明', 'T'], ['负责人', 'T'], ['状态', 'T'], ['处理备注', 'T']],
+    own: ['发现日', '类型', '平台', '仓', 'WO', '单号', 'SKU', '说明'], onNew: { '状态': '待处理' } }
+};
+function sheetRows() {
+  const out = {}; const f14 = E.addDays(today, -14), f30 = E.addDays(today, -30), f60 = E.addDays(today, -60);
+  const hz = (s) => M.cfg.hazmat.includes(String(s).replace(/\*\d+$/, ''));
+  const pn = (p) => PN[p] || p || '未匹配';
+  // 未上线明细
+  const offRows = ON.rows.filter((r) => !r.on && !r.quiet && r.sd && r.sd >= f30);
+  const onByTr = new Map(ON.rows.map((r) => [r.tr, r]));
+  out.off = offRows.map((r) => ({ key: r.tr, v: { '发货日': r.sd, '平台': pn(r.p), '仓': r.wh, 'WO': r.wo, '渠道': r.wlCh || r.ch, 'SKU': r.sku, '承运商': r.t.carrier,
+    '718状态': r.t.st + (r.t.sub && r.t.sub !== r.t.st ? ' / ' + r.t.sub : ''), '停留天数': r.days == null ? null : Math.round(r.days * 10) / 10, '阶段': STAGE[r.lvl] || '',
+    '作废面单': r.void ? '是' : '', '查轨迹': 'https://t.17track.net/zh-cn#nums=' + r.tr } }));
+  SHEETS.off.stale = (vals, k) => {
+    const r = onByTr.get(k); const human = vals['负责人'] || vals['处理结果'];
+    if (r && r.on) return human ? { '阶段': '已上线' } : 'delete';
+    if ((vals['发货日'] || '') < f30) return human ? null : 'delete';
+    return human ? null : 'delete';
+  };
+  // 上线率汇总
+  const g = {};
+  for (const r of ON.rows) { if (!r.sd || r.sd < f30) continue; const k = r.sd + '|' + pn(r.p) + '|' + (r.wh || '?'); const o = g[k] || (g[k] = { sd: r.sd, p: pn(r.p), wh: r.wh || '?', tot: 0, on: 0, offs: [] }); o.tot++; if (r.on) o.on++; else if (!r.quiet) o.offs.push(r.tr); else o.on++; }
+  out.onl = Object.entries(g).map(([k, o]) => ({ key: k, v: { '发货日': o.sd, '平台': o.p, '仓': o.wh, '总数': o.tot, '已上线': o.on, '未上线': o.tot - o.on, '上线率%': o.tot ? Math.round(o.on / o.tot * 1000) / 10 : null, '未上线明细': o.offs } }));
+  // 每日打单汇总
+  const dd = {};
+  for (const k of M.pkgs) { if (k.d < f60) continue; const key = k.d + '|' + pn(k.p) + '|' + (k.wh || '未匹配'); const o = dd[key] || (dd[key] = { d: k.d, p: pn(k.p), wh: k.wh || '未匹配', n: 0, amt: 0, hn: 0, ha: 0 }); o.n++; o.amt += k.cost; if (hz(k.base)) { o.hn++; o.ha += k.cost; } }
+  out.day = Object.entries(dd).map(([k, o]) => ({ key: k, v: { '日期': o.d, '平台': o.p, '仓': o.wh, '包裹数': o.n, '金额': E.r2(o.amt), '危品包裹': o.hn, '危品金额': E.r2(o.ha) } }));
+  // 交单核对 SKU
+  out.sku = [];
+  const whList = [...new Set(M.whOut.map((r) => r.wh).concat(M.whs))];
+  for (const wh of whList) {
+    const days = E.whFlow(M, f60, E.addDays(today, 1), wh).days;
+    for (const d in days) { const day = days[d]; for (const k in day.sku) { const o = day.sku[k]; if (!o.jd && !o.ck) continue;
+      const df = day.hasRec ? E.r2(o.jd - o.ck) : null;
+      const note = !day.hasRec ? '没有仓库记录' : df > 0 ? (o.jd ? '有 ' + df + ' 件交运了没发走' : '') + (o.voidLab ? '（' + o.voidLab + ' 件面单已作废）' : '') : o.jd === 0 ? '仓库出库不在 WL 订单里（FBA / 批量 / 补发？）' : df < 0 ? '仓库多出库 ' + (-df) : '已全部发走';
+      out.sku.push({ key: d + '|' + wh + '|' + o.name, v: { '日期': d, '仓': wh, 'SKU': o.name, '已交运': o.jd, '已发货': day.hasRec ? o.ck : null, '差值': df, '说明': note } }); } }
+  }
+  // 面单均价（近 8 周）
+  out.pr = [];
+  const ws0 = E.weekStartOf(today, M.cfg.weekStart);
+  for (let i = 0; i < 8; i++) { const ws = E.addDays(ws0, -7 * i); for (const o of E.skuAvg(M, ws, E.addDays(ws, 6))) for (const p in o.byP) { const b = o.byP[p];
+    out.pr.push({ key: ws + '|' + o.sku + '|' + pn(p), v: { '周': ws, 'SKU': o.sku, '平台': pn(p), '包裹数': b.n, '金额': E.r2(b.amt), '均价': b.n ? E.r2(b.amt / b.n) : null } }); } }
+  // 异常单（近 14 天）
+  const ex = new Map(); const add = (key, v) => { if (!ex.has(key)) ex.set(key, { key, v }); };
+  for (const D0 of M.dates.filter((d) => d >= f14)) {
+    const rc = E.reconcile(M, D0);
+    for (const x of rc.voidShipped) add('作废面单发货|' + x.t, { '发现日': D0, '类型': '作废面单发货', '平台': pn(x.l.p), '仓': x.w.wh, 'WO': x.w.wo, '单号': x.t, 'SKU': x.w.skus, '说明': '平台上面单状态“' + x.l.st + '”，仓库仍用它发货；原面单金额 ' + n2(x.l.amt) });
+    for (const x of rc.wlNoLab) add('WL没有打单记录|' + x.t, { '发现日': D0, '类型': 'WL没有打单记录', '平台': pn(E.platOfCh(x.w.ch)), '仓': x.w.wh, 'WO': x.w.wo, '单号': x.t, 'SKU': x.w.skus, '说明': 'WL 渠道 ' + x.w.ch + '，状态 ' + x.w.st + (x.voided ? '；平台上有一张已作废的同号面单' : '') });
+    for (const x of rc.pend) { const ty = x.type === 'dup' ? '可能重复打单' : '面单在WL找不到';
+      add(ty + '|' + x.t, { '发现日': D0, '类型': ty, '平台': pn(x.l.p), '仓': x.w ? x.w.wh : '', 'WO': x.l.wo, '单号': x.t, 'SKU': x.l.sku || (x.w ? x.w.skus : ''), '说明': '面单金额 ' + n2(x.l.amt) + (x.w ? '；WL 已有单号 ' + x.w.trs.join(',') : '') }); }
+  }
+  for (const r of ON.rows) if (!r.on && !r.quiet && r.lvl >= 3 && r.sd >= f14) add('超时未上线|' + r.tr, { '发现日': r.sd, '类型': '超时未上线', '平台': pn(r.p), '仓': r.wh, 'WO': r.wo, '单号': r.tr, 'SKU': r.sku, '说明': '停留 ' + (r.days == null ? '?' : r.days.toFixed(1)) + ' 天，718：' + r.t.st + (r.void ? '；用的是作废面单' : '') });
+  const calc = {};
+  for (const p of E.PLATS) for (const r of E.ledgerRows(M, p)) {
+    calc[p + '_' + r.d] = { '上一条余额': r.open, '系统打单金额': r.sys, '期末(计算)': r.calc, '差额': r.diff,
+      '核对': r.diff == null ? (r.open == null ? '缺期初' : '待填交单后余额') : r.ok ? '对平' : '差 ' + n2(r.diff), '可能原因': r.why.join('；') };
+    if (r.ok === false && !r.explained && r.d >= f14) add('余额对不上|' + p + '|' + r.d, { '发现日': r.d, '类型': '余额对不上', '平台': pn(p), '仓': '', 'WO': '', '单号': '', 'SKU': '', '说明': '差 ' + n2(r.diff) + (r.why.length ? '；' + r.why.join('；') : '') });
+  }
+  out.exc = [...ex.values()];
+  SHEETS.exc.stale = (vals) => (vals['发现日'] || '') < f14 ? null : (vals['状态'] === '待处理' && !vals['负责人'] && !vals['处理备注'] ? { '状态': '已自动消除' } : null);
+  return { out, calc };
+}
+async function syncSheets(why) {
+  if (S.mode !== 'db' || !window.FS) return;
+  if (SYNC.running) { SYNC.again = true; return; }
+  SYNC.running = true; SYNC.err = null;
+  try {
+    do {
+      SYNC.again = false;
+      setStatus('warn', '正在更新给人看的表…');
+      const { out, calc } = sheetRows(); const res = [];
+      for (const k of ['off', 'onl', 'day', 'sku', 'pr', 'exc']) { const r = await window.FS.syncSheet(SHEETS[k], out[k]); res.push(SHEETS[k].name + ' +' + r.add + '/改' + r.set + '/删' + r.del); }
+      await window.FS.syncLedger(calc);
+      SYNC.last = nowStr(); SYNC.res = res;
+    } while (SYNC.again);
+    setStatus('ok', '多维表格已连接 · 表格已更新 ' + SYNC.last.slice(11, 16));
+  } catch (e) { SYNC.err = e; setStatus('warn', '更新表格失败：' + (e.message || e) + '（可在“设置”里点“更新表格”重试）'); console.error(e); }
+  SYNC.running = false;
+}
 
 // ---------------- boot ----------------
 document.addEventListener('click', (e) => { const g = e.target.closest('[data-go]'); if (g) go(g.dataset.go); const t = e.target.closest('[data-tab]'); if (t) go(t.dataset.tab); });
