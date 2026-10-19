@@ -155,6 +155,7 @@ label.f{display:grid;gap:3px;font-size:12px;color:var(--ink-2)}
 .btrack span{height:100%;min-width:2px;position:relative}
 .btrack span:first-child{border-radius:0}
 .btrack span:last-child{border-radius:0 4px 4px 0}
+.bdet>summary{list-style:none;cursor:pointer}.bdet>summary::-webkit-details-marker{display:none}.bdet[open]>summary{border-bottom-left-radius:0;border-bottom-right-radius:0}.bdet .bbody{border:1px solid var(--line);border-top:0;border-radius:0 0 var(--r) var(--r);padding:8px;display:grid;gap:8px}.lnk{border:0;background:none;padding:0;cursor:pointer;font:inherit;text-decoration:underline}
 .tip{position:fixed;pointer-events:none;background:var(--ink);color:var(--bg);font-size:12px;padding:6px 9px;border-radius:5px;z-index:20;max-width:260px}
 details>summary{cursor:pointer;color:var(--accent);font-size:12.5px}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:var(--r);font-size:13px;z-index:30}
@@ -1731,10 +1732,10 @@ function vOnline() {
   if (!M.trk.length) return '<section class="panel"><header><h2>上线率</h2></header><div class="empty">还没有 718 报告。上传 718 导出的 CSV 后，这里会按发货日期统计上线率，并列出未上线的包裹。</div></section>';
   const from = E.addDays(D, -ONF.days);
   const days = ON.days.filter((d) => d.d >= from && d.d <= E.addDays(D, 1));
-  const dRows = days.map((d) => '<tr>' + td(esc(d.d), 'mono') + tdn(d.tot) + tdn(d.on) + tdn(d.off ? '<span class="neg">' + d.off + '</span>' : 0) + tdn(rateChip(d.on / d.tot)) + tdn(d.prob || 0) +
+  const dRows = days.map((d) => '<tr>' + td(esc(d.d), 'mono') + tdn(d.tot) + tdn(d.on) + tdn(d.off ? '<button class="lnk neg" data-onsd="' + d.d + '" title="看这一天的未上线包裹">' + d.off + ' ›</button>' : 0) + tdn(rateChip(d.on / d.tot)) + tdn(d.prob || 0) +
     td(PORDER.concat(['?']).filter((p) => d.byP[p]).map((p) => '<span class="small">' + esc(PN[p]) + ' <span class="mono">' + (d.byP[p].tot - d.byP[p].off) + '/' + d.byP[p].tot + '</span></span>').join(' · '), 'small') +
     td(Object.entries(d.byWh).map(([w, o]) => '<span class="small">' + esc(w) + ' <span class="mono">' + (o.tot - o.off) + '/' + o.tot + '</span></span>').join(' · '), 'small') + '</tr>');
-  const off = ON.off.filter((r) => r.sd >= from && (!ONF.p || r.p === ONF.p) && (!ONF.wh || r.wh === ONF.wh) && !(ONF.hideSolved && r.note && r.note.solved));
+  const off = ON.off.filter((r) => r.sd >= from && (!ONF.sd || r.sd === ONF.sd) && (!ONF.p || r.p === ONF.p) && (!ONF.wh || r.wh === ONF.wh) && !(ONF.hideSolved && r.note && r.note.solved));
   const bt = ON.batches.filter((b) => b.sd >= from);
   const probs = ON.probs.filter((r) => r.sd >= from && !(ONF.hideSolved && r.note && r.note.solved));
   const pOpts = ['<option value="">全部平台</option>'].concat(PORDER.concat(['?']).map((p) => '<option value="' + p + '"' + (ONF.p === p ? ' selected' : '') + '>' + PN[p] + '</option>')).join('');
@@ -1744,8 +1745,8 @@ function vOnline() {
     '<div class="row"><span class="small muted">看最近</span><div class="seg">' + [7, 14, 30].map((n) => '<button data-ond="' + n + '" aria-pressed="' + (ONF.days === n) + '">' + n + ' 天</button>').join('') + '</div></div></header>' +
     table(['发货日期', '#总数', '#已上线', '#未上线', '#上线率', '#问题件', '按平台（已上线/总数）', '按仓库'], dRows, { empty: '这个时间段没有 718 数据' }) + '</section>' +
     (bt.length ? '<section class="panel"><header><h2>批量未上线 · ' + bt.length + ' 组</h2><p>同一天同一平台同一仓库 ≥ ' + M.cfg.batchN + ' 个未上线，或占比 ≥ ' + Math.round(M.cfg.batchPct * 100) + '%：最危险，优先找渠道方确认是否揽收</p></header><div class="alerts">' +
-      bt.map((b) => '<div class="alert ' + LVL[b.lvl][0] + '">' + chip(LVL[b.lvl][0], LVL[b.lvl][1]) + '<span class="t">' + esc(b.sd) + ' · ' + esc(PN[b.p]) + ' · ' + esc(b.wh) + ' · ' + b.off.length + ' / ' + b.tot + ' 未上线</span><span></span><span class="d">中位 ' + n2(b.medDays) + ' 天，最长 ' + n2(b.maxDays) + ' 天 · ' + (b.nVoid ? '<b class="neg">其中 ' + b.nVoid + ' 个用的是已作废面单</b> · ' : '') + Object.entries(b.skus).map(([k, v]) => esc(k) + ' × ' + v).join('，') + '</span></div>').join('') + '</div></section>' : '') +
-    '<section class="panel"><header><h2>未上线包裹 · ' + off.length + '</h2><p>阶段：≥' + M.cfg.on1 + ' 天关注，≥' + M.cfg.on2 + ' 天预警，≥' + M.cfg.on3 + ' 天严重（天数取 718 的“停留天数”）</p>' +
+      bt.map((b, bi) => '<details class="bdet"><summary class="alert ' + LVL[b.lvl][0] + '">' + chip(LVL[b.lvl][0], LVL[b.lvl][1]) + '<span class="t">' + esc(b.sd) + ' · ' + esc(PN[b.p]) + ' · ' + esc(b.wh) + ' · ' + b.off.length + ' / ' + b.tot + ' 未上线</span><span class="small" style="color:var(--accent);white-space:nowrap">看明细 ›</span><span class="d">中位 ' + n2(b.medDays) + ' 天，最长 ' + n2(b.maxDays) + ' 天 · ' + (b.nVoid ? '<b class="neg">其中 ' + b.nVoid + ' 个用的是已作废面单</b> · ' : '') + Object.entries(b.skus).map(([k, v]) => esc(k) + ' × ' + v).join('，') + '</span></summary><div class="bbody"><div class="row"><button class="btn sm" data-bcopy="' + bi + '">复制这 ' + b.off.length + ' 个面单号</button><button class="btn sm" data-bexp="' + bi + '">导出 CSV</button></div>' + table(['面单号', 'WO', '渠道', 'SKU', '718 状态', '#停留天数', '面单'], b.off.slice().sort((x, y) => (y.days || 0) - (x.days || 0)).map((r) => '<tr>' + td(esc(r.tr), 'mono') + td(esc(r.wo), 'mono small') + td(esc(r.ch || r.wlCh), 'small') + td(skuCell(r.sku)) + td(esc(r.t.sub || r.t.st)) + tdn(r.days == null ? '—' : n2(r.days)) + td(r.void ? chip('red', '已作废') : '') + '</tr>'), { h: 380 }) + '</div></details>').join('') + '</div></section>' : '') +
+    '<section class="panel" id="offList"><header><h2>未上线包裹 · ' + off.length + (ONF.sd ? ' · 只看 ' + esc(ONF.sd) + ' 发货' : '') + '</h2>' + (ONF.sd ? '<button class="btn sm" id="onSdClr">看全部日期</button>' : '') + '<p>阶段：≥' + M.cfg.on1 + ' 天关注，≥' + M.cfg.on2 + ' 天预警，≥' + M.cfg.on3 + ' 天严重（天数取 718 的“停留天数”）</p>' +
     '<div class="row"><select class="in" id="onP">' + pOpts + '</select><select class="in" id="onW">' + wOpts + '</select><label class="small"><input type="checkbox" id="onHide"' + (ONF.hideSolved ? ' checked' : '') + '> 隐藏已解决</label><button class="btn sm" id="onCopy">复制摘要给运营</button><button class="btn sm" id="onExp">导出 CSV</button></div></header>' +
     table(['阶段', '#天数', '面单号', '发货日期', '平台', '渠道', '仓库', 'SKU', 'WO', '718 状态', '下一步动作', '已解决', '备注', ''], off.slice(0, 400).map(offRow), { empty: '没有未上线的包裹' }) + (off.length > 400 ? '<p class="muted small">只显示前 400 个，导出 CSV 查看全部</p>' : '') + '</section>' +
     '<section class="panel"><header><h2>已上线但有异常 · ' + probs.length + '</h2><p>破损、退回、投递失败、可能异常；718 备注以“无需关注”开头的已自动排除</p></header>' +
@@ -1767,6 +1768,11 @@ function offRow(r) {
 }
 function probRow(r) { return '<tr>' + td(chip('yellow', r.t.sub || r.t.st)) + td(esc(r.tr), 'mono') + td(esc(r.sd), 'mono') + td(pchip(r.p)) + td(esc(r.wh || '—')) + td(skuCell(r.sku)) + td(esc(r.t.note), 'wrap small') + td(esc(r.t.last), 'mono small') + noteCells(r) + '</tr>'; }
 AFTER.online = function () {
+  document.querySelectorAll('[data-onsd]').forEach((b) => b.onclick = () => { ONF.sd = b.dataset.onsd; render(); const el = $('#offList'); if (el) el.scrollIntoView({ block: 'start' }); });
+  const sc = $('#onSdClr'); if (sc) sc.onclick = () => { ONF.sd = null; render(); const el = $('#offList'); if (el) el.scrollIntoView({ block: 'start' }); };
+  const btL = () => ON.batches.filter((b) => b.sd >= E.addDays(D, -ONF.days));
+  document.querySelectorAll('[data-bcopy]').forEach((b) => b.onclick = () => copyText(btL()[+b.dataset.bcopy].off.map((r) => r.tr).join('\n')));
+  document.querySelectorAll('[data-bexp]').forEach((b) => b.onclick = () => { const x = btL()[+b.dataset.bexp]; saveFile('批量未上线_' + x.sd + '_' + PN[x.p] + '_' + x.wh + '.csv', csvOf(['面单号', 'WO', '渠道', 'SKU', '718状态', '停留天数', '面单作废'], x.off.map((r) => [r.tr, r.wo, r.ch || r.wlCh, r.sku, r.t.sub || r.t.st, r.days, r.void ? '是' : '']))); });
   document.querySelectorAll('[data-ond]').forEach((b) => b.onclick = () => { ONF.days = +b.dataset.ond; render(); });
   const p = $('#onP'); if (p) p.onchange = () => { ONF.p = p.value; render(); };
   const w = $('#onW'); if (w) w.onchange = () => { ONF.wh = w.value; render(); };
@@ -1778,7 +1784,7 @@ AFTER.online = function () {
     try { await put('note', t, data); rebuild(); render(); toast('已保存'); } catch (e) { b.disabled = false; toast('保存失败：' + (e.message || e)); }
   });
   const from = E.addDays(D, -ONF.days);
-  const offAll = () => ON.off.filter((r) => r.sd >= from && (!ONF.p || r.p === ONF.p) && (!ONF.wh || r.wh === ONF.wh) && !(ONF.hideSolved && r.note && r.note.solved));
+  const offAll = () => ON.off.filter((r) => r.sd >= from && (!ONF.sd || r.sd === ONF.sd) && (!ONF.p || r.p === ONF.p) && (!ONF.wh || r.wh === ONF.wh) && !(ONF.hideSolved && r.note && r.note.solved));
   const cp = $('#onCopy'); if (cp) cp.onclick = () => {
     const off = offAll(); const g = {};
     off.forEach((r) => { const k = (r.wh || '未知仓') + ' · ' + PN[r.p]; (g[k] = g[k] || []).push(r); });
