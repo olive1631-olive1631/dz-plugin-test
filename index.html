@@ -1092,7 +1092,7 @@ details>summary{cursor:pointer;color:var(--accent);font-size:12.5px}
     for (const [, w] of batch) { if (seenWO.has(w.wo)) continue; seenWO.add(w.wo); if (w.st && w.st !== '已发货') notShipped.push(w); }
     // per-platform counts & amount
     const byP = {};
-    for (const l of labsD) { const o = byP[l.p] || (byP[l.p] = { pk: 0, amt: 0, labels: 0, matched: 0, nowl: 0 }); o.pk += l.trs.length || l.n; o.amt += l.amt; o.labels++; }
+    for (const l of labsD) { const o = byP[l.p] || (byP[l.p] = { pk: 0, amt: 0, labels: 0, matched: 0, nowl: 0 }); o.pk += l.trs.length || l.n; o.amt += l.amt; o.labels += l.trs.length || l.n; }
     for (const m of matched) byP[m.l.p].matched++;
     for (const m of labNoWL) byP[m.l.p].nowl++;
     // per-SKU units: labelled vs shipped (by batch)
@@ -1703,19 +1703,15 @@ function whFlowHtml() {
     '<div class="row" style="margin-top:6px"><h3>单个 SKU 每日走势</h3><select class="in" id="whSku" aria-label="SKU">' + skuNames.map((k) => '<option' + (k === WHSKU ? ' selected' : '') + '>' + esc(k) + '</option>').join('') + '</select><span class="muted small">累计差只累加有仓库记录的日期；一直为正说明有件压在仓库</span></div>' +
     table(['日期（北京）', '#已交运', '#已发货', '#当天差', '#累计差', '仓库记录'], trRows) + '</section>';
 }
-// 一单多箱：一张面单（一个订单）对应多个运单号，面单数比包裹数少是正常的，不是差异
-function multiNote(labs) {
-  const m = {}; let n = 0, extra = 0;
-  for (const l of labs) { const k = l.trs.length || l.n || 1; if (k > 1) { n++; extra += k - 1; m[E.PNAME[l.p] || l.p] = (m[E.PNAME[l.p] || l.p] || 0) + 1; } }
-  return n ? '，其中 ' + Object.entries(m).map(([p, c]) => p + ' ' + c).join('、') + ' 单是一单多箱（多 ' + extra + ' 个包裹，属正常）' : '';
-}
+// 面单数 = 面单号个数：一单多件的（如海承主面单 + 子面单）按子面单逐个计，一个包裹一个面单号
+const labCount = (labs) => labs.reduce((s, l) => s + (l.trs.length || l.n || 1), 0);
 const SPEC_REASONS = ['线下临时单（与销售无关）', 'TZ 仓发货（报告未上传）', '补发单', '多打 · 需作废退款', '重复打单 · 需作废退款', '其他'];
 function vRecon() {
   const rc = AL.rc;
   if (!rc.labsD.length) return '<section class="panel"><header><h2>' + esc(D) + ' 交单核对</h2></header><div class="empty">这一天没有打单平台记录。换一个打单日，或先上传当天的平台报告。</div></section>';
   const whs = Object.keys(rc.whCov);
-  const pRows = PORDER.filter((p) => rc.byP[p]).map((p) => { const o = rc.byP[p]; return '<tr>' + td(pchip(p)) + tdn(o.labels) + tdn(o.pk + (o.pk > o.labels ? ' <span class="muted small">含一单多箱</span>' : '')) + tdn(n2(o.amt)) + tdn(o.matched) + tdn(o.nowl ? '<span class="neg">' + o.nowl + '</span>' : 0) + '</tr>'; });
-  pRows.push('<tr class="tot">' + td('合计') + tdn(rc.labsD.length) + tdn(rc.labPk) + tdn(n2(rc.amt)) + tdn(rc.matched.length) + tdn(rc.labNoWL.length) + '</tr>');
+  const pRows = PORDER.filter((p) => rc.byP[p]).map((p) => { const o = rc.byP[p]; return '<tr>' + td(pchip(p)) + tdn(o.labels) + tdn(o.pk) + tdn(n2(o.amt)) + tdn(o.matched) + tdn(o.nowl ? '<span class="neg">' + o.nowl + '</span>' : 0) + '</tr>'; });
+  pRows.push('<tr class="tot">' + td('合计') + tdn(labCount(rc.labsD)) + tdn(rc.labPk) + tdn(n2(rc.amt)) + tdn(rc.matched.length) + tdn(rc.labNoWL.length) + '</tr>');
   const A = rc.labNoWL.map((x) => {
     const sp = x.spec; const pk = E.labelPackages(M, x.l)[0];
     return '<tr>' + td(x.type === 'dup' ? chip('red', '疑似重复打单') : chip('orange', 'WL 无此单')) + td(pchip(x.l.p)) + td(esc(x.l.wo), 'mono') + td(esc(x.t), 'mono') + td(skuCell(pk ? pk.sku : x.l.sku)) + tdn(n2(x.l.amt / Math.max(1, x.l.n))) + td(esc(x.l.ch), 'small') +
@@ -1731,7 +1727,7 @@ function vRecon() {
   const whSec = whFlowHtml();
   const specs = Object.entries(S.cache.spec).filter(([, s]) => s.ok).sort((a, b) => (a[1].at < b[1].at ? 1 : -1)).slice(0, 50);
   return '<section class="panel"><header><h2>' + esc(D) + ' 交单核对</h2><p>打单平台当天的面单号 vs Wavelink 订单的派送单号，按面单号逐个匹配，WO 号兜底</p></header>' +
-    '<div class="kpis">' + kpi('打单平台包裹', rc.labPk, rc.labsD.length + ' 张面单' + multiNote(rc.labsD)) + kpi('Wavelink 包裹', rc.wlPk, '仓库：' + (whs.join(' / ') || '—')) + kpi('已匹配', rc.matched.length, pct(rc.matched.length / Math.max(1, rc.labPk))) + kpi('差值（平台 − WL）', (rc.diff > 0 ? '+' : '') + rc.diff, rc.diff === 0 ? '数量一致' : rc.diff > 0 ? '平台多出的面单要确认' : 'WL 有包裹没找到有效面单：' + [rc.voidShipped.length ? rc.voidShipped.length + ' 个用作废面单发货' : '', rc.wlNoLab.length ? rc.wlNoLab.length + ' 个没有打单记录' : ''].filter(Boolean).join('，')) + '</div>' +
+    '<div class="kpis">' + kpi('打单平台包裹', rc.labPk, labCount(rc.labsD) + ' 张面单') + kpi('Wavelink 包裹', rc.wlPk, '仓库：' + (whs.join(' / ') || '—')) + kpi('已匹配', rc.matched.length, pct(rc.matched.length / Math.max(1, rc.labPk))) + kpi('差值（平台 − WL）', (rc.diff > 0 ? '+' : '') + rc.diff, rc.diff === 0 ? '数量一致' : rc.diff > 0 ? '平台多出的面单要确认' : 'WL 有包裹没找到有效面单：' + [rc.voidShipped.length ? rc.voidShipped.length + ' 个用作废面单发货' : '', rc.wlNoLab.length ? rc.wlNoLab.length + ' 个没有打单记录' : ''].filter(Boolean).join('，')) + '</div>' +
     (rc.wlStale ? '<div class="banner warn">已上传的 Wavelink 订单最新只到 ' + esc(rc.wlMax || '—') + '，这一天的面单还没有 Wavelink 数据可以对，下面的“找不到”是因为报告没上传，不是多打。</div>' : '') +
     (!rc.wlStale && rc.whLag.length ? '<div class="banner info">' + rc.whLag.map((x) => esc(x.wh) + ' 仓的 Wavelink 报告最新只到 ' + esc(x.d)).join('；') + '。如果“WL 无此单”的面单是这个仓发的，补传它的 Wavelink 报告后会自动匹配。</div>' : '') +
     (!rc.wlStale && !rc.whLag.length && !whs.includes('TZ') && rc.labNoWL.length ? '<div class="banner info">这个批次没有 TZ 仓的 Wavelink 数据。如果“WL 无此单”的面单是 TZ 发的，上传 TZ 的 Wavelink 报告后会自动匹配。</div>' : '') +
@@ -2028,7 +2024,7 @@ function vSet() {
     f('cTol', '余额允许误差（$）', c.ledTol, '') + f('cWeek', '一周从哪天开始（0=周日，1=周一）', c.weekStart, '') + f('cLoad', '打开时读取最近多少天', c.loadDays || 150, '') +
     '</div><div class="row"><button class="btn pri" id="cfgSave">保存规则</button></div></section>' +
     '<section class="panel"><header><h2>数据</h2><p>数据存在这个多维表格的“存档-…”和“余额台账”表里，打开这个多维表格的同事看到的是同一份。存档表是插件读写用的，不要手动改；余额台账可以直接在表格里填</p></header>' +
-    '<p class="small">已读取：打单 ' + counts.lab + ' 天·平台 · Wavelink ' + counts.wl + ' 天·仓 · 718 ' + counts.trk + ' 天 · 余额 ' + counts.led + ' 条 · 仓库发货记录 ' + counts.who + ' 天·仓 · 跟进备注 ' + counts.note + ' · 特殊情况 ' + counts.spec + '</p><p class="small muted">插件版本 2026-10-21d · 718 多天重复的单号 ' + (E.trkDup || 0) + ' 个（已按最新上传的为准）</p>' +
+    '<p class="small">已读取：打单 ' + counts.lab + ' 天·平台 · Wavelink ' + counts.wl + ' 天·仓 · 718 ' + counts.trk + ' 天 · 余额 ' + counts.led + ' 条 · 仓库发货记录 ' + counts.who + ' 天·仓 · 跟进备注 ' + counts.note + ' · 特殊情况 ' + counts.spec + '</p><p class="small muted">插件版本 2026-10-21e · 718 多天重复的单号 ' + (E.trkDup || 0) + ' 个（已按最新上传的为准）</p>' +
     '<div class="row"><label class="btn pri">导入数据包<input type="file" id="pkImp" accept=".json" hidden></label><button class="btn" id="pkExp">导出数据包（备份）</button><label class="small"><input type="checkbox" id="pkRep"> 导入时先清空表格里的数据</label></div>' +
     '<p class="small muted">导入默认是合并：同一天同一平台的数据用数据包里的覆盖，手动录入的余额不会被覆盖。第一次导入历史数据要几分钟，期间别关插件。</p>' +
     '<div class="row"><button class="btn" id="expAll">导出全部源数据（Excel）</button><button class="btn" id="reload">重新读取</button><button class="btn" id="syncNow">更新表格</button></div>' +
