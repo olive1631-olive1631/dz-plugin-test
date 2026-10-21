@@ -938,7 +938,16 @@ details>summary{cursor:pointer;color:var(--accent);font-size:12.5px}
   E.wlToRow = (w) => [w.wo, w.trs.join(','), w.skus, w.ch, w.st, w.ot, w.sd, w.pick || ''];
   E.rowToWl = (wh, r) => ({ wh, wo: r[0], trs: r[1] ? r[1].split(',') : [], skus: r[2], ch: r[3], st: r[4], ot: r[5], sd: r[6], pick: r[7] || '' });
   E.tToRow = (t) => [t.tr, t.send, t.carrier, t.st, t.sub, t.last, t.on, t.sign, t.stay == null ? '' : t.stay, t.note];
-  E.rowToT = (r) => ({ tr: r[0], send: r[1], carrier: r[2], st: r[3], sub: r[4], last: r[5], on: r[6], sign: r[7], stay: r[8] === '' ? null : r[8], note: r[9] });
+  // 同一个单号可能存在多天的 718 存档里（718 上线后会把“发货时间”改成上网日），只保留最新上传的那条；旧数据没有上传时间，以最近轨迹时间较晚的为准
+  E.dedupT = function (arr) {
+    const m = new Map();
+    for (const t of arr) {
+      const o = m.get(t.tr);
+      if (!o || (t.u || '') > (o.u || '') || ((t.u || '') === (o.u || '') && (t.last || '') > (o.last || ''))) m.set(t.tr, t);
+    }
+    return [...m.values()];
+  };
+  E.rowToT = (r) => ({ tr: r[0], send: r[1], carrier: r[2], st: r[3], sub: r[4], last: r[5], on: r[6], sign: r[7], stay: r[8] === '' ? null : r[8], note: r[9], u: r[10] || '' });
 
   // Group parsed batch into storage docs (merging into existing docs passed as maps)
   // existing: {lab:{id:doc}, wl:{id:doc}, trk:{id:doc}}; returns {docs:[{col,id,data}], cov:{P:[from,to]}}
@@ -975,7 +984,7 @@ details>summary{cursor:pointer;color:var(--accent);font-size:12.5px}
     for (const d in gt) {
       const ex = (existing.trk && existing.trk[d]) ? existing.trk[d].rows : [];
       const m = new Map(); ex.forEach((r) => m.set(r[0], r));
-      for (const t of gt[d]) m.set(t.tr, E.tToRow(t));
+      for (const t of gt[d]) m.set(t.tr, E.tToRow(t).concat([nowIso])); // 第 11 列记上传时间，读的时候同一单号取最新上传的
       docs.push({ col: 'trk', id: d, data: { d, u: nowIso, rows: [...m.values()] } });
     }
     for (const l of parsed.ledger) docs.push({ col: 'led', id: l.p + '_' + l.d, data: Object.assign({}, l, { u: nowIso }) });
@@ -987,7 +996,7 @@ details>summary{cursor:pointer;color:var(--accent);font-size:12.5px}
   // state: {labels[], wl[], trk: [], ledger: [], notes:{}, spec:{}, cfg, cov:{P:[[a,b]...]}}
   E.buildModel = function (st) {
     const cfg = Object.assign({}, E.DEFAULT_CFG, st.cfg || {});
-    const M = { cfg, labels: st.labels || [], wl: st.wl || [], trk: st.trk || [], ledger: st.ledger || [], whOut: st.whout || [], notes: st.notes || {}, spec: st.spec || {}, cov: st.cov || {} };
+    const M = { cfg, labels: st.labels || [], wl: st.wl || [], trk: E.dedupT(st.trk || []), ledger: st.ledger || [], whOut: st.whout || [], notes: st.notes || {}, spec: st.spec || {}, cov: st.cov || {} };
     M.valid = M.labels.filter((l) => l.v);
     M.labByTr = new Map(); M.labsByBase = new Map(); M.voidByTr = new Map();
     for (const l of M.labels) for (const t of l.trs) { if (l.v) M.labByTr.set(t, l); else if (!M.labByTr.has(t)) M.voidByTr.set(t, l); }
