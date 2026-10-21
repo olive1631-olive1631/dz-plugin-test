@@ -942,9 +942,11 @@ details>summary{cursor:pointer;color:var(--accent);font-size:12.5px}
   E.dedupT = function (arr) {
     const m = new Map();
     for (const t of arr) {
+      t.tr = String(t.tr == null ? '' : t.tr).trim();
       const o = m.get(t.tr);
       if (!o || (t.u || '') > (o.u || '') || ((t.u || '') === (o.u || '') && (t.last || '') > (o.last || ''))) m.set(t.tr, t);
     }
+    E.trkDup = arr.length - m.size;
     return [...m.values()];
   };
   E.rowToT = (r) => ({ tr: r[0], send: r[1], carrier: r[2], st: r[3], sub: r[4], last: r[5], on: r[6], sign: r[7], stay: r[8] === '' ? null : r[8], note: r[9], u: r[10] || '' });
@@ -1625,6 +1627,20 @@ async function savePending() {
     msg.textContent = '核对已有数据…';
     for (const c of ['lab', 'wl', 'trk']) for (const id of ids[c]) { const d = await getDoc(c, id); if (d) existing[c][id] = d; }
     const { docs, cov } = E.buildDocs(P, existing, at);
+    // 718 上线后会改“发货时间”，同一个单号会落到另一天的存档。把这次上传的单号从其他天的存档里删掉，避免旧状态残留
+    if (P.t718.length) {
+      const newDay = new Map(); P.t718.forEach((t) => newDay.set(String(t.tr).trim(), E.day(t.send) || 'nodate'));
+      const keep = (id) => (r) => { const k = String(r[0]).trim(); return !newDay.has(k) || newDay.get(k) === id; };
+      for (const d of docs) if (d.col === 'trk') d.data = Object.assign({}, d.data, { rows: d.data.rows.filter(keep(d.id)) });
+      const inDocs = new Set(docs.filter((d) => d.col === 'trk').map((d) => d.id));
+      let cleaned = 0;
+      for (const id in S.cache.trk) {
+        if (inDocs.has(id)) continue;
+        const old = S.cache.trk[id]; const rows = (old.rows || []).filter(keep(id));
+        if (rows.length !== (old.rows || []).length) { cleaned += old.rows.length - rows.length; docs.push({ col: 'trk', id, data: Object.assign({}, old, { rows }) }); }
+      }
+      if (cleaned) console.log('718 旧记录已清理', cleaned);
+    }
     // ledger import must not overwrite rows entered in this tool
     const todo = docs.filter((d) => !(d.col === 'led' && S.cache.led[d.id] && S.cache.led[d.id].src !== 'import'));
     let i = 0;
@@ -2003,7 +2019,7 @@ function vSet() {
     f('cTol', '余额允许误差（$）', c.ledTol, '') + f('cWeek', '一周从哪天开始（0=周日，1=周一）', c.weekStart, '') + f('cLoad', '打开时读取最近多少天', c.loadDays || 150, '') +
     '</div><div class="row"><button class="btn pri" id="cfgSave">保存规则</button></div></section>' +
     '<section class="panel"><header><h2>数据</h2><p>数据存在这个多维表格的“存档-…”和“余额台账”表里，打开这个多维表格的同事看到的是同一份。存档表是插件读写用的，不要手动改；余额台账可以直接在表格里填</p></header>' +
-    '<p class="small">已读取：打单 ' + counts.lab + ' 天·平台 · Wavelink ' + counts.wl + ' 天·仓 · 718 ' + counts.trk + ' 天 · 余额 ' + counts.led + ' 条 · 仓库发货记录 ' + counts.who + ' 天·仓 · 跟进备注 ' + counts.note + ' · 特殊情况 ' + counts.spec + '</p>' +
+    '<p class="small">已读取：打单 ' + counts.lab + ' 天·平台 · Wavelink ' + counts.wl + ' 天·仓 · 718 ' + counts.trk + ' 天 · 余额 ' + counts.led + ' 条 · 仓库发货记录 ' + counts.who + ' 天·仓 · 跟进备注 ' + counts.note + ' · 特殊情况 ' + counts.spec + '</p><p class="small muted">插件版本 2026-10-21b · 718 多天重复的单号 ' + (E.trkDup || 0) + ' 个（已按最新上传的为准）</p>' +
     '<div class="row"><label class="btn pri">导入数据包<input type="file" id="pkImp" accept=".json" hidden></label><button class="btn" id="pkExp">导出数据包（备份）</button><label class="small"><input type="checkbox" id="pkRep"> 导入时先清空表格里的数据</label></div>' +
     '<p class="small muted">导入默认是合并：同一天同一平台的数据用数据包里的覆盖，手动录入的余额不会被覆盖。第一次导入历史数据要几分钟，期间别关插件。</p>' +
     '<div class="row"><button class="btn" id="expAll">导出全部源数据（Excel）</button><button class="btn" id="reload">重新读取</button><button class="btn" id="syncNow">更新表格</button></div>' +
