@@ -1114,15 +1114,18 @@ details>summary{cursor:pointer;color:var(--accent);font-size:12.5px}
       amt: E.r2(labsD.reduce((s, l) => s + l.amt, 0)) };
   };
 
-  // ---------- 仓库口径：已交运（WL 提取时间的北京日期，不换算） vs 已发货（仓库发货记录当天页签的“出库”） ----------
+  // ---------- 仓库口径：已交运 vs 已发货（仓库发货记录当天页签的“出库”） ----------
+  // 交运日期：已发货的单取 WL“发货时间”的北京日期（同一批单都在北京 21:30 左右 = 休斯顿 8:30，稳定不变）；
+  // 还没发货的单没有发货时间，才退回用“提取时间”（这一列是快递揽收/扫描时间、美国时间，会被改写，只作兜底）
+  E.jdDay = (w) => E.day(w.sd) || E.day(w.pick);
   E.whFlow = function (M, from, to, wh) {
     const days = {};
     const D = (d) => days[d] || (days[d] = { d, sku: {}, jd: 0, ck: 0, hasRec: false, nOrd: 0 });
     const S = (o, name) => { const k = E.normSku(name); return o.sku[k] || (o.sku[k] = { name, jd: 0, ck: 0, noLab: 0, voidLab: 0, ords: [] }); };
     for (const w of M.wl) {
       if (wh && w.wh !== wh) continue;
-      if (!w.pick || w.st === '已取消') continue;
-      const jd = E.day(w.pick); if (jd < from || jd > to) continue;
+      if (w.st === '已取消') continue;
+      const jd = E.jdDay(w); if (!jd || jd < from || jd > to) continue;
       const segs = E.skuSegs(w.skus); if (!segs.length) continue;
       const hasLab = w.trs.some((t) => M.labByTr.has(t)) || (M.labsByBase.get(w.wo) || []).length > 0;
       const isVoid = !hasLab && w.trs.some((t) => M.voidByTr.has(t));
@@ -1344,7 +1347,7 @@ details>summary{cursor:pointer;color:var(--accent);font-size:12.5px}
     for (const wh0 of [...new Set(M.whOut.map((r) => r.wh))]) {
       const f = E.whFlow(M, E.addDays(D, -7), D, wh0);
       const bad = Object.values(f.days).filter((o) => o.hasRec && o.short > 0).sort((a, b) => (a.d < b.d ? 1 : -1));
-      if (bad.length) add('orange', '交单核对', wh0 + ' 有已交运但仓库没发走的件', '按 Wavelink 提取时间（北京日期）对仓库发货记录：' + bad.map((o) => o.d + ' 差 ' + o.short + ' 件（' + Object.values(o.sku).filter((x) => x.jd > x.ck).slice(0, 4).map((x) => x.name + ' ' + E.r2(x.jd - x.ck)).join('，') + '）').join('；'), 'recon');
+      if (bad.length) add('orange', '交单核对', wh0 + ' 有已交运但仓库没发走的件', '按 Wavelink 发货时间（北京日期，没发货的用提取时间）对仓库发货记录：' + bad.map((o) => o.d + ' 差 ' + o.short + ' 件（' + Object.values(o.sku).filter((x) => x.jd > x.ck).slice(0, 4).map((x) => x.name + ' ' + E.r2(x.jd - x.ck)).join('，') + '）').join('；'), 'recon');
     }
     if (opts && opts.on) {
       const on = opts.on;
@@ -1668,7 +1671,7 @@ function whFlowHtml() {
   if (!WHW || !whList.includes(WHW)) WHW = M.whOut.length ? (M.whOut.some((r) => r.wh === 'TXW') ? 'TXW' : M.whOut[0].wh) : (whList[0] || 'TXW');
   const all = E.whFlow(M, E.addDays(today, -60), E.addDays(today, 1), WHW);
   const dayKeys = Object.keys(all.days).filter((d) => all.days[d].jd || all.days[d].ck || all.days[d].hasRec).sort();
-  const head = '<section class="panel"><header><h2>已交运 vs 仓库已发货</h2><p>已交运 = Wavelink“提取时间”的日期（北京时间，不换算），按 SKU 件数，已取消订单不算；已发货 = 仓库发货记录里同一日期页签的“出库”。差值 = 已交运 − 已发货，正数就是交运了但仓库没发走的件</p>';
+  const head = '<section class="panel"><header><h2>已交运 vs 仓库已发货</h2><p>已交运 = Wavelink“发货时间”的日期（北京时间，不换算）；还没发货的单没有发货时间，用“提取时间”的日期兜底。按 SKU 件数，已取消订单不算；已发货 = 仓库发货记录里同一日期页签的“出库”。差值 = 已交运 − 已发货，正数就是交运了但仓库没发走的件</p>';
   if (!dayKeys.length) return head + '</header><div class="empty">还没有数据</div></section>';
   if (!WHD || !all.days[WHD]) WHD = all.days[D] ? D : dayKeys[dayKeys.length - 1];
   const day = all.days[WHD] || { sku: {}, jd: 0, ck: 0, hasRec: false, short: 0, nOrd: 0 };
@@ -1753,7 +1756,7 @@ AFTER.recon = function () {
   const wd = $('#whD'); if (wd) wd.onchange = () => { WHD = wd.value; render(); };
   const ww = $('#whW'); if (ww) ww.onchange = () => { WHW = ww.value; render(); };
   const ws = $('#whSku'); if (ws) ws.onchange = () => { WHSKU = ws.value; render(); };
-  const ex = $('#expSku'); if (ex) ex.onclick = () => { const f = E.whFlow(M, WHD, WHD, WHW); const dd = f.days[WHD] || { sku: {}, hasRec: false }; saveFile('已交运vs已发货_' + WHW + '_' + WHD + '.csv', csvOf(['日期（北京）', '仓库', 'SKU', '已交运（WL提取）', '已发货（仓库记录）', '差值', '其中无有效面单'], Object.values(dd.sku).map((v) => [WHD, WHW, v.name, v.jd, dd.hasRec ? v.ck : '', dd.hasRec ? E.r2(v.jd - v.ck) : '', v.noLab]))); };
+  const ex = $('#expSku'); if (ex) ex.onclick = () => { const f = E.whFlow(M, WHD, WHD, WHW); const dd = f.days[WHD] || { sku: {}, hasRec: false }; saveFile('已交运vs已发货_' + WHW + '_' + WHD + '.csv', csvOf(['日期（北京）', '仓库', 'SKU', '已交运（WL发货时间）', '已发货（仓库记录）', '差值', '其中无有效面单'], Object.values(dd.sku).map((v) => [WHD, WHW, v.name, v.jd, dd.hasRec ? v.ck : '', dd.hasRec ? E.r2(v.jd - v.ck) : '', v.noLab]))); };
 };
 
 // ---------------- 上线率 ----------------
