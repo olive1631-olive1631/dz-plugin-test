@@ -1053,11 +1053,12 @@ details>summary{cursor:pointer;color:var(--accent);font-size:12.5px}
     const batch = new Map(); // tr -> wl
     const noTrOrders = [];
     for (const { t } of labTrs) { const w = M.wlByTr.get(t); if (w) batch.set(t, w); }
+    // 没有打单记录的 WL 包裹按“发货时间”的北京日期归到当天（跟已交运同一口径），还没发货的才按下单日期
+    // “忽略渠道”（如官方面单下单）不走打单平台：照样算进 WL 包裹数，单独列出，不当成漏打预警
     for (const w of M.wl) {
-      if (ign.has(w.ch)) continue;
-      if (!w.trs.length) { if (E.day(w.ot) === D) noTrOrders.push(w); continue; }
+      if (!w.trs.length) { if (!ign.has(w.ch) && E.day(w.ot) === D) noTrOrders.push(w); continue; }
       const labelled = w.trs.some((t) => M.labByTr.has(t));
-      if (!labelled && E.day(w.ot) === D) w.trs.forEach((t) => batch.set(t, w));
+      if (!labelled && (E.day(w.sd) || E.day(w.ot)) === D) w.trs.forEach((t) => batch.set(t, w));
     }
     const matched = [], labNoWL = [], wlNoLab = [];
     const child = [], cancelled = [];
@@ -1073,8 +1074,8 @@ details>summary{cursor:pointer;color:var(--accent);font-size:12.5px}
       const type = sameWO && sameWO.trs.length ? 'dup' : 'nowl';
       labNoWL.push({ t, l, type, w: sameWO || null, spec: M.spec[t] || null });
     }
-    const voidShipped = [];
-    for (const [t, w] of batch) if (!M.labByTr.has(t)) { const vd = M.voidByTr.get(t) || null; if (vd && w.st === '已发货') voidShipped.push({ t, w, l: vd }); else wlNoLab.push({ t, w, voided: vd }); }
+    const voidShipped = [], offCh = [];
+    for (const [t, w] of batch) if (!M.labByTr.has(t)) { if (ign.has(w.ch)) { offCh.push({ t, w }); continue; } const vd = M.voidByTr.get(t) || null; if (vd && w.st === '已发货') voidShipped.push({ t, w, l: vd }); else wlNoLab.push({ t, w, voided: vd }); }
     // over-printing: base WO with more valid label packages than WL packages
     const over = [];
     const bases = uniq(labsD.map((l) => l.b));
@@ -1110,7 +1111,7 @@ details>summary{cursor:pointer;color:var(--accent);font-size:12.5px}
     const whLag = Object.keys(whMax).filter((wh) => whMax[wh] < D).map((wh) => ({ wh, d: whMax[wh] }));
     const wlStale = !wlMax || D > wlMax;
     const pend = labNoWL.filter((x) => !(x.spec && x.spec.ok));
-    return { D, wlMax, wlStale, whLag, child, cancelled, voidShipped, labsD, labPk, wlPk, diff: labPk - wlPk, matched, labNoWL, pend, wlNoLab, over, notShipped, noTrOrders, shortTr, byP, sku, whCov,
+    return { D, wlMax, wlStale, whLag, child, cancelled, voidShipped, labsD, labPk, wlPk, diff: labPk - wlPk, offCh, matched, labNoWL, pend, wlNoLab, over, notShipped, noTrOrders, shortTr, byP, sku, whCov,
       amt: E.r2(labsD.reduce((s, l) => s + l.amt, 0)) };
   };
 
@@ -1529,7 +1530,7 @@ function vHome() {
   const wlLast = M.wl.map((w) => E.day(w.ot)).sort().pop(); const tLast = Object.values(S.cache.upl).flatMap((u) => u.items || []).filter((i) => (i.files || []).some((f) => f.kind === 'T718')).map((i) => i.at).sort().pop();
   return '<section class="panel"><header><h2>' + esc(D) + ' 打单批次</h2><p>' + (red ? red + ' 条严重 · ' : '') + (org ? org + ' 条预警 · ' : '') + AL.list.length + ' 条提醒</p></header>' +
     '<div class="kpis">' +
-    kpi('打单平台包裹', rc.labPk, 'Wavelink 对应 ' + rc.wlPk + ' 个 · 差 ' + (rc.diff > 0 ? '+' : '') + rc.diff) +
+    kpi('打单平台包裹', rc.labPk, 'Wavelink 对应 ' + rc.wlPk + ' 个 · 差 ' + (rc.diff > 0 ? '+' : '') + rc.diff + (rc.offCh.length ? '（其中 ' + rc.offCh.length + ' 个走官方面单等平台外渠道）' : '')) +
     kpi('当天打单金额', money(rc.amt), Object.entries(rc.byP).map(([p, o]) => PN[p] + ' ' + n2(o.amt)).join(' · ')) +
     kpi('上线率', lastFull ? pct(lastFull.on / lastFull.tot) : '—', lastFull ? lastFull.d + ' 发货 ' + lastFull.tot + ' 个，未上线 ' + lastFull.off : '没有 718 数据') +
     kpi('余额核对', led.length ? ledOk + ' / ' + led.length : '—', led.length ? (led.length - ledOk ? (led.length - ledOk) + ' 个平台对不上' : '已录入的平台全部对平') : '当天还没录入') +
@@ -1730,12 +1731,13 @@ function vRecon() {
   const whSec = whFlowHtml();
   const specs = Object.entries(S.cache.spec).filter(([, s]) => s.ok).sort((a, b) => (a[1].at < b[1].at ? 1 : -1)).slice(0, 50);
   return '<section class="panel"><header><h2>' + esc(D) + ' 交单核对</h2><p>打单平台当天的面单号 vs Wavelink 订单的派送单号，按面单号逐个匹配，WO 号兜底</p></header>' +
-    '<div class="kpis">' + kpi('打单平台包裹', rc.labPk, labCount(rc.labsD) + ' 张面单') + kpi('Wavelink 包裹', rc.wlPk, '仓库：' + (whs.join(' / ') || '—')) + kpi('已匹配', rc.matched.length, pct(rc.matched.length / Math.max(1, rc.labPk))) + kpi('差值（平台 − WL）', (rc.diff > 0 ? '+' : '') + rc.diff, rc.diff === 0 ? '数量一致' : rc.diff > 0 ? '平台多出的面单要确认' : 'WL 有包裹没找到有效面单：' + [rc.voidShipped.length ? rc.voidShipped.length + ' 个用作废面单发货' : '', rc.wlNoLab.length ? rc.wlNoLab.length + ' 个没有打单记录' : ''].filter(Boolean).join('，')) + '</div>' +
+    '<div class="kpis">' + kpi('打单平台包裹', rc.labPk, labCount(rc.labsD) + ' 张面单') + kpi('Wavelink 包裹', rc.wlPk, '仓库：' + (whs.join(' / ') || '—') + (rc.offCh.length ? ' · 其中平台外渠道 ' + rc.offCh.length : '')) + kpi('已匹配', rc.matched.length, pct(rc.matched.length / Math.max(1, rc.labPk))) + kpi('差值（平台 − WL）', (rc.diff > 0 ? '+' : '') + rc.diff, rc.diff === 0 ? '数量一致' : rc.diff > 0 ? '平台多出的面单要确认' : 'WL 有包裹没找到有效面单：' + [rc.offCh.length ? rc.offCh.length + ' 个走平台外渠道（正常）' : '', rc.voidShipped.length ? rc.voidShipped.length + ' 个用作废面单发货' : '', rc.wlNoLab.length ? rc.wlNoLab.length + ' 个没有打单记录' : ''].filter(Boolean).join('，')) + '</div>' +
     (rc.wlStale ? '<div class="banner warn">已上传的 Wavelink 订单最新只到 ' + esc(rc.wlMax || '—') + '，这一天的面单还没有 Wavelink 数据可以对，下面的“找不到”是因为报告没上传，不是多打。</div>' : '') +
     (!rc.wlStale && rc.whLag.length ? '<div class="banner info">' + rc.whLag.map((x) => esc(x.wh) + ' 仓的 Wavelink 报告最新只到 ' + esc(x.d)).join('；') + '。如果“WL 无此单”的面单是这个仓发的，补传它的 Wavelink 报告后会自动匹配。</div>' : '') +
     (!rc.wlStale && !rc.whLag.length && !whs.includes('TZ') && rc.labNoWL.length ? '<div class="banner info">这个批次没有 TZ 仓的 Wavelink 数据。如果“WL 无此单”的面单是 TZ 发的，上传 TZ 的 Wavelink 报告后会自动匹配。</div>' : '') +
     table(['平台', '#面单', '#包裹', '#金额', '#匹配 WL', '#WL 无此单'], pRows) + '</section>' +
     '<section class="panel"><header><h2>面单在 Wavelink 找不到 · ' + rc.labNoWL.length + '</h2><p>需要运营确认是否属实；确认后记入特殊情况，不再预警</p></header>' + table(['类型', '平台', '平台订单号', '面单号', 'SKU', '#单包裹金额', '渠道', 'WL 已有面单号', '原因', '说明', ''], A, { empty: '全部面单都在 Wavelink 里' }) + '</section>' +
+    (rc.offCh.length ? '<section class="panel"><header><h2>平台外渠道的包裹 · ' + rc.offCh.length + '</h2><p>WL 渠道在“设置 → 交单核对忽略的 Wavelink 渠道”里（如官方面单下单），面单不是在打单平台买的，算进 WL 包裹数，差值里这部分是正常的</p></header>' + table(['WO 号', '派送单号', 'SKU', 'WL 物流渠道', '仓库', '状态', 'WL 发货时间'], rc.offCh.map((x) => '<tr>' + td(esc(x.w.wo), 'mono') + td(esc(x.t), 'mono') + td(skuCell(x.w.skus)) + td(esc(x.w.ch)) + td(esc(x.w.wh)) + td(esc(x.w.st)) + td(esc(x.w.sd || '—'), 'mono small') + '</tr>')) + '</section>' : '') +
     '<section class="panel"><header><h2>Wavelink 包裹没有打单记录 · ' + rc.wlNoLab.length + '</h2><p>可能漏打，或者对应平台的报告没上传完整</p></header>' + table(['WO 号', '派送单号', 'SKU', 'WL 物流渠道', '仓库', '状态', '说明'], B, { empty: '没有' }) + '</section>' +
     '<section class="panel"><header><h2>WL 已发货，但面单在平台已作废 · ' + rc.voidShipped.length + '</h2><p>仓库用这个单号发了货，平台上这张面单已取消/失败，同一订单也没有其他有效面单：包裹多半不会上线，渠道可能补扣。要找渠道确认能否恢复面单，或让仓库拦截、换有效面单</p></header>' + table(['WO 号', '派送单号', 'SKU', 'WL 物流渠道', '仓库', 'WL 下单', 'WL 发货（美中）', '平台', '平台状态', '#原面单金额', '718'], Vs, { empty: '没有' }) + '</section>' +
     (rc.over.length ? '<section class="panel"><header><h2>同一订单打单件数多于 Wavelink · ' + rc.over.length + '</h2></header>' + table(['WO 号', '平台', '#打单包裹', '#WL 包裹', '面单明细'], C) + '</section>' : '') +
